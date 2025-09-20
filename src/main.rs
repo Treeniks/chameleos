@@ -21,6 +21,8 @@ fn main() -> eframe::Result {
 struct Chameleos {
     lines: Vec<Vec<egui::Pos2>>,
     stroke: egui::Stroke,
+
+    fill: bool,
 }
 
 impl Default for Chameleos {
@@ -28,6 +30,8 @@ impl Default for Chameleos {
         Self {
             lines: Vec::new(),
             stroke: egui::Stroke::new(2.0, egui::Color32::PURPLE),
+
+            fill: false,
         }
     }
 }
@@ -59,6 +63,10 @@ impl eframe::App for Chameleos {
 
                 if ui.button("Clear").clicked() {
                     self.lines.clear();
+                }
+
+                if ui.button("Fill").clicked() {
+                    self.fill = !self.fill;
                 }
 
                 let (mut response, painter) =
@@ -97,6 +105,10 @@ impl eframe::App for Chameleos {
     }
 
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        [0.0, 0.0, 0.0, 0.0]
+        if self.fill {
+            [1.0, 0.0, 1.0, 1.0]
+        } else {
+            [0.0, 0.0, 0.0, 0.0]
+        }
     }
 }
