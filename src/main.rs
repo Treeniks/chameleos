@@ -12,7 +12,7 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "Chameleos",
+        "chameleos",
         native_options,
         Box::new(|cc| Ok(Box::new(Chameleos::new(cc)))),
     )
@@ -32,6 +32,16 @@ impl eframe::App for Chameleos {
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
+                if ui.input(|i| i.key_pressed(egui::Key::X)) {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Title(
+                        "chameleos-passthrough".to_string(),
+                    ));
+                }
+
+                if ui.input(|i| i.key_pressed(egui::Key::C)) {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Title("chameleos".to_string()));
+                }
+
                 ui.heading("Hello World!");
             });
     }
