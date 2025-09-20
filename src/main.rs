@@ -18,11 +18,23 @@ fn main() -> eframe::Result {
     )
 }
 
-#[derive(Default)]
-struct Chameleos {}
+struct Chameleos {
+    lines: Vec<Vec<egui::Pos2>>,
+    stroke: egui::Stroke,
+}
+
+impl Default for Chameleos {
+    fn default() -> Self {
+        Self {
+            lines: Vec::new(),
+            stroke: egui::Stroke::new(2.0, egui::Color32::PURPLE),
+        }
+    }
+}
 
 impl Chameleos {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        cc.egui_ctx.set_pixels_per_point(2.0);
         Self::default()
     }
 }
@@ -42,7 +54,45 @@ impl eframe::App for Chameleos {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Title("chameleos".to_string()));
                 }
 
-                ui.heading("Hello World!");
+                // mostly taken from egui's painting example
+                // https://github.com/emilk/egui/blob/6ac155c5cd3ee9d194579edc964c5659dfe70ab0/crates/egui_demo_lib/src/demo/painting.rs
+
+                if ui.button("Clear").clicked() {
+                    self.lines.clear();
+                }
+
+                let (mut response, painter) =
+                    ui.allocate_painter(ui.available_size_before_wrap(), egui::Sense::drag());
+
+                if self.lines.is_empty() {
+                    self.lines.push(vec![]);
+                }
+
+                let current_line = self.lines.last_mut().unwrap();
+
+                if let Some(pointer_pos) = response.interact_pointer_pos() {
+                    if current_line.last() != Some(&pointer_pos) {
+                        current_line.push(pointer_pos);
+                        response.mark_changed();
+                    }
+                } else {
+                    self.lines.push(vec![]);
+                    response.mark_changed();
+                }
+
+                let shapes = self
+                    .lines
+                    .iter()
+                    .filter(|line| !line.is_empty())
+                    .map(|line| {
+                        if line.len() >= 2 {
+                            egui::Shape::line(line.clone(), self.stroke)
+                        } else {
+                            egui::Shape::circle_filled(line[0], 2.0, egui::Color32::PURPLE)
+                        }
+                    });
+
+                painter.extend(shapes);
             });
     }
 
