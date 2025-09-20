@@ -1,7 +1,15 @@
 use eframe::egui;
 
 fn main() -> eframe::Result {
-    let native_options = eframe::NativeOptions::default();
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            // unfortunately this doesn't work with hyprland :/ (yet?)
+            // .with_mouse_passthrough(true)
+            // .with_always_on_top()
+            .with_transparent(true),
+
+        ..Default::default()
+    };
     eframe::run_native(
         "Chameleos",
         native_options,
@@ -20,8 +28,14 @@ impl Chameleos {
 
 impl eframe::App for Chameleos {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Hello World!");
-        });
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE)
+            .show(ctx, |ui| {
+                ui.heading("Hello World!");
+            });
+    }
+
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        [0.0, 0.0, 0.0, 0.0]
     }
 }
