@@ -3,6 +3,7 @@ use eframe::egui;
 fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_app_id("chameleos")
             // unfortunately this doesn't work with hyprland :/ (yet?)
             // .with_mouse_passthrough(true)
             // .with_always_on_top()
