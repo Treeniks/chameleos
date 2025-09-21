@@ -282,7 +282,7 @@ impl eframe::App for Chameleos {
                         current_line.push(pointer_pos);
                         response.mark_changed();
                     }
-                } else {
+                } else if !current_line.is_empty() {
                     self.lines.push(vec![]);
                     response.mark_changed();
                 }
