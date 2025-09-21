@@ -24,6 +24,7 @@ struct Chameleos {
     lines: Vec<Vec<egui::Pos2>>,
     stroke: egui::Stroke,
 
+    passthrough_active: bool,
     fill: bool,
 }
 
@@ -35,6 +36,7 @@ impl Default for Chameleos {
             lines: Vec::new(),
             stroke: egui::Stroke::new(2.0, egui::Color32::PURPLE),
 
+            passthrough_active: false,
             fill: true,
         }
     }
@@ -72,14 +74,18 @@ impl eframe::App for Chameleos {
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
-                if ui.input(|i| i.key_pressed(egui::Key::X)) {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Title(
-                        "chameleos-passthrough".to_string(),
-                    ));
-                }
-
                 if ui.input(|i| i.key_pressed(egui::Key::C)) {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Title("chameleos".to_string()));
+                    if self.passthrough_active {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Title(
+                            "chameleos".to_string(),
+                        ));
+                    } else {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Title(
+                            "chameleos-passthrough".to_string(),
+                        ));
+                    }
+
+                    self.passthrough_active = !self.passthrough_active;
                 }
 
                 // mostly taken from egui's painting example
