@@ -206,14 +206,10 @@ impl eframe::App for Chameleos {
                 // mostly taken from egui's painting example
                 // https://github.com/emilk/egui/blob/6ac155c5cd3ee9d194579edc964c5659dfe70ab0/crates/egui_demo_lib/src/demo/painting.rs
 
-                let (mut response, painter) =
+                let (response, painter) =
                     ui.allocate_painter(ui.available_size_before_wrap(), egui::Sense::drag());
 
-                if response.hovered() {
-                    ctx.set_cursor_icon(egui::CursorIcon::Crosshair);
-                } else {
-                    ctx.set_cursor_icon(egui::CursorIcon::Default);
-                }
+                let mut response = response.on_hover_cursor(egui::CursorIcon::Crosshair);
 
                 if self.lines.is_empty() {
                     self.lines.push(vec![]);
