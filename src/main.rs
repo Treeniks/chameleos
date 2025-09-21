@@ -32,6 +32,7 @@ struct Settings {
 
     toggle_keybind: Keybind,
     clear_keybind: Keybind,
+    undo_keybind: Keybind,
     toggle_fill_keybind: Keybind,
     toggle_menu_keybind: Keybind,
 }
@@ -52,6 +53,10 @@ impl Default for Settings {
                 egui::Modifiers::NONE,
                 egui::Key::C,
             )),
+            undo_keybind: Keybind::new(egui::KeyboardShortcut::new(
+                egui::Modifiers::NONE,
+                egui::Key::U,
+            )),
             toggle_fill_keybind: Keybind::new(egui::KeyboardShortcut::new(
                 egui::Modifiers::NONE,
                 egui::Key::N,
@@ -68,6 +73,7 @@ impl Settings {
     fn clear_expecting(&mut self) {
         self.toggle_keybind.clear_expecting();
         self.clear_keybind.clear_expecting();
+        self.undo_keybind.clear_expecting();
         self.toggle_fill_keybind.clear_expecting();
         self.toggle_menu_keybind.clear_expecting();
     }
@@ -108,6 +114,10 @@ impl Settings {
 
                 ui.label("Clear:");
                 ui.add(&mut self.clear_keybind);
+                ui.end_row();
+
+                ui.label("Undo:");
+                ui.add(&mut self.undo_keybind);
                 ui.end_row();
 
                 ui.label("Toggle Fill:");
@@ -159,6 +169,15 @@ impl Chameleos {
 impl Chameleos {
     fn clear(&mut self) {
         self.lines.clear();
+    }
+
+    fn undo(&mut self) {
+        if !self.lines.is_empty() {
+            self.lines.pop();
+            if !self.lines.is_empty() {
+                self.lines.pop();
+            }
+        }
     }
 }
 
@@ -213,6 +232,13 @@ impl eframe::App for Chameleos {
                             if ui.add(clear_button).clicked() {
                                 self.clear();
                             }
+
+                            let undo_button = egui::Button::new("Undo").shortcut_text(
+                                ctx.format_shortcut(self.settings.undo_keybind.shortcut()),
+                            );
+                            if ui.add(undo_button).clicked() {
+                                self.undo();
+                            }
                         },
                     );
                 });
@@ -249,6 +275,10 @@ impl eframe::App for Chameleos {
 
                 if ui.input_mut(|i| i.consume_shortcut(self.settings.clear_keybind.shortcut())) {
                     self.clear();
+                }
+
+                if ui.input_mut(|i| i.consume_shortcut(self.settings.undo_keybind.shortcut())) {
+                    self.undo();
                 }
 
                 if ui
