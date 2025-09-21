@@ -22,14 +22,21 @@ impl Keybind {
     pub fn shortcut(&self) -> egui::KeyboardShortcut {
         self.shortcut
     }
+
+    pub fn clear_expecting(&mut self) {
+        self.expecting = false;
+    }
 }
 
 impl egui::Widget for &mut Keybind {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let response = ui.button(ui.ctx().format_shortcut(&self.shortcut()));
+        let button =
+            egui::Button::new(ui.ctx().format_shortcut(&self.shortcut())).selected(self.expecting);
+
+        let response = ui.add(button);
 
         if response.clicked() {
-            self.expecting = true;
+            self.expecting = !self.expecting;
         }
 
         if self.expecting {

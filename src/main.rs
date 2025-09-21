@@ -58,6 +58,13 @@ impl Default for Settings {
 }
 
 impl Settings {
+    fn clear_expecting(&mut self) {
+        self.toggle_keybind.clear_expecting();
+        self.clear_keybind.clear_expecting();
+        self.toggle_fill_keybind.clear_expecting();
+        self.toggle_menu_keybind.clear_expecting();
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("Ui Scale:");
@@ -72,25 +79,25 @@ impl Settings {
 
         ui.heading("Keybinds");
 
-        ui.horizontal(|ui| {
-            ui.label("Toggle:");
-            ui.add(&mut self.toggle_keybind);
-        });
+        egui::Grid::new("keybinds-grid")
+            .num_columns(2)
+            .show(ui, |ui| {
+                ui.label("Toggle:");
+                ui.add(&mut self.toggle_keybind);
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.label("Clear:");
-            ui.add(&mut self.clear_keybind);
-        });
+                ui.label("Clear:");
+                ui.add(&mut self.clear_keybind);
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.label("Toggle Fill:");
-            ui.add(&mut self.toggle_fill_keybind);
-        });
+                ui.label("Toggle Fill:");
+                ui.add(&mut self.toggle_fill_keybind);
+                ui.end_row();
 
-        ui.horizontal(|ui| {
-            ui.label("Toggle Menu:");
-            ui.add(&mut self.toggle_menu_keybind);
-        });
+                ui.label("Toggle Menu:");
+                ui.add(&mut self.toggle_menu_keybind);
+                ui.end_row();
+            });
     }
 }
 
@@ -183,11 +190,16 @@ impl eframe::App for Chameleos {
             });
         }
 
-        egui::Window::new("Settings")
+        if egui::Window::new("Settings")
             .open(&mut self.settings_active)
             .show(ctx, |ui| {
                 self.settings.ui(ui);
-            });
+            })
+            .is_none()
+        {
+            // if the window is not open, make sure none of the keybinds are recording right now
+            self.settings.clear_expecting();
+        }
 
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
