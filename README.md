@@ -18,6 +18,8 @@ Hence, we use Hyprland's [`nofocus`](https://wiki.hypr.land/Configuring/Window-R
 
 We also don't automatically set Chameleos's window to cover the whole screen. Hence, we display a fully purple window on start so you can move it in place for your convenience.
 
+The code for painting was shamelessly copied from [egui's Painting example](https://github.com/emilk/egui/blob/6ac155c5cd3ee9d194579edc964c5659dfe70ab0/crates/egui_demo_lib/src/demo/painting.rs).
+
 ## Hyprland config
 
 ```
