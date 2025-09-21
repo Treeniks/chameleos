@@ -16,7 +16,7 @@ Chameleos just renders a fully transparent window over the entire screen and let
 
 Hence, we use Hyprland's [`nofocus`](https://wiki.hypr.land/Configuring/Window-Rules/#dynamic-rules) windowrule instead. But since dynamically enabling and disabling windowrules doesn't work either, we set the `nofocus` windowrule to trigger for applications with the `chameleos-passthrough` title, and then change the title appropriately in Chameleos.
 
-Chameleos also doesn't automatically set its window to cover the whole screen. Instead, it displays a fully purple window on start so you have to move it in place yourself. Just use the "Toggle Fill" button or keybind to make it transparent.
+Chameleos also doesn't automatically set its window to cover the whole screen. Instead, it displays a full window on start so you have to move it in place yourself. Just use the "Toggle Fill" button or keybind to make it transparent.
 
 The code for painting was shamelessly copied from [egui's painting example](https://github.com/emilk/egui/blob/6ac155c5cd3ee9d194579edc964c5659dfe70ab0/crates/egui_demo_lib/src/demo/painting.rs).
 

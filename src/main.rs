@@ -26,6 +26,10 @@ fn main() -> eframe::Result {
 struct Settings {
     stroke: egui::Stroke,
     ui_scale: f32,
+
+    fill_on_startup: bool,
+    fill_color: egui::Rgba,
+
     toggle_keybind: Keybind,
     clear_keybind: Keybind,
     toggle_fill_keybind: Keybind,
@@ -37,6 +41,9 @@ impl Default for Settings {
         Self {
             stroke: egui::Stroke::new(2.0, egui::Color32::PURPLE),
             ui_scale: 1.5,
+            fill_on_startup: true,
+            fill_color: egui::Rgba::from_rgb(1.0, 0.0, 1.0),
+
             toggle_keybind: Keybind::new(egui::KeyboardShortcut::new(
                 egui::Modifiers::NONE,
                 egui::Key::X,
@@ -73,6 +80,19 @@ impl Settings {
             if ui.button("Apply").clicked() {
                 ui.ctx().set_pixels_per_point(self.ui_scale);
             }
+        });
+
+        ui.separator();
+
+        ui.checkbox(&mut self.fill_on_startup, "Fill On Startup");
+
+        ui.horizontal(|ui| {
+            ui.label("Fill Color:");
+            egui::widgets::color_picker::color_edit_button_rgba(
+                ui,
+                &mut self.fill_color,
+                egui::widgets::color_picker::Alpha::Opaque,
+            );
         });
 
         ui.separator();
@@ -129,7 +149,7 @@ impl Chameleos {
             lines: Vec::new(),
 
             passthrough_active: false,
-            fill: true,
+            fill: settings.fill_on_startup,
 
             settings,
         }
@@ -143,7 +163,7 @@ impl Chameleos {
 }
 
 impl eframe::App for Chameleos {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if self.menu_active {
             egui::TopBottomPanel::top("menu-bar").show(ctx, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
@@ -276,7 +296,7 @@ impl eframe::App for Chameleos {
 
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
         if self.fill {
-            [1.0, 0.0, 1.0, 1.0]
+            self.settings.fill_color.to_array()
         } else {
             [0.0, 0.0, 0.0, 0.0]
         }
