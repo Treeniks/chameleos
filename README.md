@@ -16,9 +16,9 @@ Chameleos just renders a fully transparent window over the entire screen and let
 
 Hence, we use Hyprland's [`nofocus`](https://wiki.hypr.land/Configuring/Window-Rules/#dynamic-rules) windowrule instead. But since dynamically enabling and disabling windowrules doesn't work either, we set the `nofocus` windowrule to trigger for applications with the `chameleos-passthrough` title, and then change the title appropriately in Chameleos.
 
-We also don't automatically set Chameleos's window to cover the whole screen. Hence, we display a fully purple window on start so you can move it in place for your convenience.
+Chameleos also doesn't automatically set its window to cover the whole screen. Instead, it displays a fully purple window on start so you have to move it in place yourself. Just use the "Toggle Fill" button or keybind to make it transparent.
 
-The code for painting was shamelessly copied from [egui's Painting example](https://github.com/emilk/egui/blob/6ac155c5cd3ee9d194579edc964c5659dfe70ab0/crates/egui_demo_lib/src/demo/painting.rs).
+The code for painting was shamelessly copied from [egui's painting example](https://github.com/emilk/egui/blob/6ac155c5cd3ee9d194579edc964c5659dfe70ab0/crates/egui_demo_lib/src/demo/painting.rs).
 
 ## Hyprland config
 
@@ -52,8 +52,10 @@ When chameleos is in passthrough mode, we need to explicitly tell Hyprland to pa
 bind = SUPER, X, pass, class:^(chameleos)$
 ```
 
+The currently active keybinds can be seen under `File -> Settings`.
+
 ## Why "Chameleos"?
 
 ![Chameleos](https://monsterhunterwiki.org/images/a/a5/MHRS-Chameleos_Render.png)
 
-wook at his cutie widdle tongue (≧◡≦)
+wook at his cute widdle tongue (≧◡≦)
