@@ -1,4 +1,5 @@
 use eframe::egui;
+use serde::{Deserialize, Serialize};
 
 fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions {
@@ -18,6 +19,7 @@ fn main() -> eframe::Result {
     )
 }
 
+#[derive(Deserialize, Serialize)]
 struct Settings {
     stroke: egui::Stroke,
     ui_scale: f32,
@@ -91,8 +93,10 @@ struct Chameleos {
 
 impl Chameleos {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // TODO replace with persistance
-        let settings = Settings::default();
+        let settings: Settings = cc
+            .storage
+            .and_then(|storage| eframe::get_value(storage, "settings"))
+            .unwrap_or_default();
 
         cc.egui_ctx.set_pixels_per_point(settings.ui_scale);
 
@@ -250,5 +254,9 @@ impl eframe::App for Chameleos {
         } else {
             [0.0, 0.0, 0.0, 0.0]
         }
+    }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, "settings", &self.settings);
     }
 }
