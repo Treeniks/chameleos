@@ -63,33 +63,42 @@ impl eframe::App for Chameleos {
                         ),
                     )
                     .ui(ui, |ui| {
-                        ui.menu_button("File", |ui| {
-                            if ui.button("Exit").clicked() {
-                                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                            }
+                        egui::containers::Sides::new().show(
+                            ui,
+                            |ui| {
+                                ui.menu_button("File", |ui| {
+                                    if ui.button("Exit").clicked() {
+                                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                                    }
 
-                            ui.menu_button("Ui Scale", |ui| {
-                                ui.add(egui::Slider::new(&mut self.ui_scale, 0.5..=3.0));
+                                    ui.menu_button("Ui Scale", |ui| {
+                                        ui.add(egui::Slider::new(&mut self.ui_scale, 0.5..=3.0));
 
-                                if ui.button("Apply").clicked() {
-                                    ctx.set_pixels_per_point(self.ui_scale);
+                                        if ui.button("Apply").clicked() {
+                                            ctx.set_pixels_per_point(self.ui_scale);
+                                        }
+                                    });
+                                });
+
+                                if ui.button("Toggle Fill").clicked() {
+                                    self.fill = !self.fill;
                                 }
-                            });
-                        });
 
-                        ui.menu_button("Paint", |ui| {
-                            if ui.button("Clear").clicked() {
-                                self.lines.clear();
-                            }
-                        });
+                                if ui.button("Hide Menu").clicked() {
+                                    self.menu_active = false;
+                                }
+                            },
+                            |ui| {
+                                // unfortunately, putting this in a submenu doesn't seem to work :/
+                                ui.add(&mut self.stroke);
 
-                        if ui.button("Toggle Fill").clicked() {
-                            self.fill = !self.fill;
-                        }
+                                ui.separator();
 
-                        if ui.button("Hide Menu").clicked() {
-                            self.menu_active = false;
-                        }
+                                if ui.button("Clear Paint").clicked() {
+                                    self.lines.clear();
+                                }
+                            },
+                        );
                     });
             });
         }
