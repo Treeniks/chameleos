@@ -124,48 +124,47 @@ impl eframe::App for Chameleos {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if self.menu_active {
             egui::TopBottomPanel::top("menu-bar").show(ctx, |ui| {
-                egui::MenuBar::new()
-                    .config(
-                        egui::containers::menu::MenuConfig::new().close_behavior(
-                            egui::containers::PopupCloseBehavior::CloseOnClickOutside,
-                        ),
-                    )
-                    .ui(ui, |ui| {
-                        // NOTE: ideally we'd use egui::containers::Sides
-                        // but that causes borrowing issues
+                egui::MenuBar::new().ui(ui, |ui| {
+                    // NOTE: ideally we'd use egui::containers::Sides
+                    // but that causes borrowing issues
 
-                        ui.menu_button("File", |ui| {
-                            if ui.button("Settings").clicked() {
-                                self.settings_active = true;
-                            }
+                    ui.menu_button("File", |ui| {
+                        if ui.button("Settings").clicked() {
+                            self.settings_active = true;
 
-                            if ui.button("Exit").clicked() {
-                                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                            }
-                        });
-
-                        if ui.button("Toggle Fill").clicked() {
-                            self.fill = !self.fill;
+                            // close menu
+                            // should happen by itself but not necessarily if we change the
+                            // general PopupCloseBehavior
+                            ui.close();
                         }
 
-                        if ui.button("Hide Menu").clicked() {
-                            self.menu_active = false;
+                        if ui.button("Exit").clicked() {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
-
-                        ui.with_layout(
-                            egui::Layout::right_to_left(ui.layout().vertical_align()),
-                            |ui| {
-                                // unfortunately, putting this in a submenu doesn't seem to work :/
-                                ui.add(&mut self.settings.stroke);
-
-                                ui.separator();
-
-                                if ui.button("Clear Paint").clicked() {
-                                    self.clear();
-                                }
-                            },
-                        );
                     });
+
+                    if ui.button("Toggle Fill").clicked() {
+                        self.fill = !self.fill;
+                    }
+
+                    if ui.button("Hide Menu").clicked() {
+                        self.menu_active = false;
+                    }
+
+                    ui.with_layout(
+                        egui::Layout::right_to_left(ui.layout().vertical_align()),
+                        |ui| {
+                            // unfortunately, putting this in a submenu doesn't seem to work :/
+                            ui.add(&mut self.settings.stroke);
+
+                            ui.separator();
+
+                            if ui.button("Clear Paint").clicked() {
+                                self.clear();
+                            }
+                        },
+                    );
+                });
             });
         }
 
