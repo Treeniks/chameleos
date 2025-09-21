@@ -21,6 +21,8 @@ fn main() -> eframe::Result {
 struct Chameleos {
     menu_active: bool,
 
+    ui_scale: f32,
+
     lines: Vec<Vec<egui::Pos2>>,
     stroke: egui::Stroke,
 
@@ -33,6 +35,8 @@ impl Default for Chameleos {
         Self {
             menu_active: true,
 
+            ui_scale: 1.0,
+
             lines: Vec::new(),
             stroke: egui::Stroke::new(2.0, egui::Color32::PURPLE),
 
@@ -44,7 +48,6 @@ impl Default for Chameleos {
 
 impl Chameleos {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        cc.egui_ctx.set_pixels_per_point(2.0);
         Self::default()
     }
 }
@@ -53,21 +56,41 @@ impl eframe::App for Chameleos {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if self.menu_active {
             egui::TopBottomPanel::top("menu-bar").show(ctx, |ui| {
-                egui::MenuBar::new().ui(ui, |ui| {
-                    ui.menu_button("Paint", |ui| {
-                        if ui.button("Clear").clicked() {
-                            self.lines.clear();
+                egui::MenuBar::new()
+                    .config(
+                        egui::containers::menu::MenuConfig::new().close_behavior(
+                            egui::containers::PopupCloseBehavior::CloseOnClickOutside,
+                        ),
+                    )
+                    .ui(ui, |ui| {
+                        ui.menu_button("File", |ui| {
+                            if ui.button("Exit").clicked() {
+                                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                            }
+
+                            ui.menu_button("Ui Scale", |ui| {
+                                ui.add(egui::Slider::new(&mut self.ui_scale, 0.5..=3.0));
+
+                                if ui.button("Apply").clicked() {
+                                    ctx.set_pixels_per_point(self.ui_scale);
+                                }
+                            });
+                        });
+
+                        ui.menu_button("Paint", |ui| {
+                            if ui.button("Clear").clicked() {
+                                self.lines.clear();
+                            }
+                        });
+
+                        if ui.button("Toggle Fill").clicked() {
+                            self.fill = !self.fill;
+                        }
+
+                        if ui.button("Hide Menu").clicked() {
+                            self.menu_active = false;
                         }
                     });
-
-                    if ui.button("Toggle Fill").clicked() {
-                        self.fill = !self.fill;
-                    }
-
-                    if ui.button("Hide Menu").clicked() {
-                        self.menu_active = false;
-                    }
-                });
             });
         }
 
