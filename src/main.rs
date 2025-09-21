@@ -1,6 +1,9 @@
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
+mod keybind;
+use keybind::Keybind;
+
 fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -23,10 +26,10 @@ fn main() -> eframe::Result {
 struct Settings {
     stroke: egui::Stroke,
     ui_scale: f32,
-    toggle_keybind: egui::KeyboardShortcut,
-    clear_keybind: egui::KeyboardShortcut,
-    toggle_fill_keybind: egui::KeyboardShortcut,
-    toggle_menu_keybind: egui::KeyboardShortcut,
+    toggle_keybind: Keybind,
+    clear_keybind: Keybind,
+    toggle_fill_keybind: Keybind,
+    toggle_menu_keybind: Keybind,
 }
 
 impl Default for Settings {
@@ -34,10 +37,22 @@ impl Default for Settings {
         Self {
             stroke: egui::Stroke::new(2.0, egui::Color32::PURPLE),
             ui_scale: 1.5,
-            toggle_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::X),
-            clear_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::C),
-            toggle_fill_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::N),
-            toggle_menu_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::M),
+            toggle_keybind: Keybind::new(egui::KeyboardShortcut::new(
+                egui::Modifiers::NONE,
+                egui::Key::X,
+            )),
+            clear_keybind: Keybind::new(egui::KeyboardShortcut::new(
+                egui::Modifiers::NONE,
+                egui::Key::C,
+            )),
+            toggle_fill_keybind: Keybind::new(egui::KeyboardShortcut::new(
+                egui::Modifiers::NONE,
+                egui::Key::N,
+            )),
+            toggle_menu_keybind: Keybind::new(egui::KeyboardShortcut::new(
+                egui::Modifiers::NONE,
+                egui::Key::M,
+            )),
         }
     }
 }
@@ -59,22 +74,22 @@ impl Settings {
 
         ui.horizontal(|ui| {
             ui.label("Toggle:");
-            ui.label(ui.ctx().format_shortcut(&self.toggle_keybind));
+            ui.add(&mut self.toggle_keybind);
         });
 
         ui.horizontal(|ui| {
             ui.label("Clear:");
-            ui.label(ui.ctx().format_shortcut(&self.clear_keybind));
+            ui.add(&mut self.clear_keybind);
         });
 
         ui.horizontal(|ui| {
             ui.label("Toggle Fill:");
-            ui.label(ui.ctx().format_shortcut(&self.toggle_fill_keybind));
+            ui.add(&mut self.toggle_fill_keybind);
         });
 
         ui.horizontal(|ui| {
             ui.label("Toggle Menu:");
-            ui.label(ui.ctx().format_shortcut(&self.toggle_menu_keybind));
+            ui.add(&mut self.toggle_menu_keybind);
         });
     }
 }
@@ -177,7 +192,7 @@ impl eframe::App for Chameleos {
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
-                if ui.input_mut(|i| i.consume_shortcut(&self.settings.toggle_keybind)) {
+                if ui.input_mut(|i| i.consume_shortcut(&self.settings.toggle_keybind.shortcut())) {
                     if self.passthrough_active {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Title(
                             "chameleos".to_string(),
@@ -191,15 +206,19 @@ impl eframe::App for Chameleos {
                     self.passthrough_active = !self.passthrough_active;
                 }
 
-                if ui.input_mut(|i| i.consume_shortcut(&self.settings.clear_keybind)) {
+                if ui.input_mut(|i| i.consume_shortcut(&self.settings.clear_keybind.shortcut())) {
                     self.clear();
                 }
 
-                if ui.input_mut(|i| i.consume_shortcut(&self.settings.toggle_fill_keybind)) {
+                if ui.input_mut(|i| {
+                    i.consume_shortcut(&self.settings.toggle_fill_keybind.shortcut())
+                }) {
                     self.fill = !self.fill;
                 }
 
-                if ui.input_mut(|i| i.consume_shortcut(&self.settings.toggle_menu_keybind)) {
+                if ui.input_mut(|i| {
+                    i.consume_shortcut(&self.settings.toggle_menu_keybind.shortcut())
+                }) {
                     self.menu_active = !self.menu_active;
                 }
 
