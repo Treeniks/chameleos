@@ -23,6 +23,7 @@ struct Settings {
     ui_scale: f32,
     toggle_keybind: egui::KeyboardShortcut,
     clear_keybind: egui::KeyboardShortcut,
+    toggle_fill_keybind: egui::KeyboardShortcut,
     toggle_menu_keybind: egui::KeyboardShortcut,
 }
 
@@ -33,6 +34,7 @@ impl Default for Settings {
             ui_scale: 1.5,
             toggle_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::X),
             clear_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::C),
+            toggle_fill_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::N),
             toggle_menu_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::M),
         }
     }
@@ -61,6 +63,11 @@ impl Settings {
         ui.horizontal(|ui| {
             ui.label("Clear:");
             ui.label(ui.ctx().format_shortcut(&self.clear_keybind));
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Toggle Fill:");
+            ui.label(ui.ctx().format_shortcut(&self.toggle_fill_keybind));
         });
 
         ui.horizontal(|ui| {
@@ -183,6 +190,10 @@ impl eframe::App for Chameleos {
 
                 if ui.input_mut(|i| i.consume_shortcut(&self.settings.clear_keybind)) {
                     self.clear();
+                }
+
+                if ui.input_mut(|i| i.consume_shortcut(&self.settings.toggle_fill_keybind)) {
+                    self.fill = !self.fill;
                 }
 
                 if ui.input_mut(|i| i.consume_shortcut(&self.settings.toggle_menu_keybind)) {
