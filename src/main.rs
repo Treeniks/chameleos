@@ -19,6 +19,8 @@ fn main() -> eframe::Result {
 }
 
 struct Chameleos {
+    menu_active: bool,
+
     lines: Vec<Vec<egui::Pos2>>,
     stroke: egui::Stroke,
 
@@ -28,10 +30,12 @@ struct Chameleos {
 impl Default for Chameleos {
     fn default() -> Self {
         Self {
+            menu_active: true,
+
             lines: Vec::new(),
             stroke: egui::Stroke::new(2.0, egui::Color32::PURPLE),
 
-            fill: false,
+            fill: true,
         }
     }
 }
@@ -45,6 +49,26 @@ impl Chameleos {
 
 impl eframe::App for Chameleos {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if self.menu_active {
+            egui::TopBottomPanel::top("menu-bar").show(ctx, |ui| {
+                egui::MenuBar::new().ui(ui, |ui| {
+                    ui.menu_button("Paint", |ui| {
+                        if ui.button("Clear").clicked() {
+                            self.lines.clear();
+                        }
+                    });
+
+                    if ui.button("Toggle Fill").clicked() {
+                        self.fill = !self.fill;
+                    }
+
+                    if ui.button("Hide Menu").clicked() {
+                        self.menu_active = false;
+                    }
+                });
+            });
+        }
+
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
@@ -60,14 +84,6 @@ impl eframe::App for Chameleos {
 
                 // mostly taken from egui's painting example
                 // https://github.com/emilk/egui/blob/6ac155c5cd3ee9d194579edc964c5659dfe70ab0/crates/egui_demo_lib/src/demo/painting.rs
-
-                if ui.button("Clear").clicked() {
-                    self.lines.clear();
-                }
-
-                if ui.button("Fill").clicked() {
-                    self.fill = !self.fill;
-                }
 
                 let (mut response, painter) =
                     ui.allocate_painter(ui.available_size_before_wrap(), egui::Sense::drag());
