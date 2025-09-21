@@ -195,6 +195,12 @@ impl eframe::App for Chameleos {
                 let (mut response, painter) =
                     ui.allocate_painter(ui.available_size_before_wrap(), egui::Sense::drag());
 
+                if response.hovered() {
+                    ctx.set_cursor_icon(egui::CursorIcon::Crosshair);
+                } else {
+                    ctx.set_cursor_icon(egui::CursorIcon::Default);
+                }
+
                 if self.lines.is_empty() {
                     self.lines.push(vec![]);
                 }
