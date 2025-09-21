@@ -39,7 +39,12 @@ windowrule = float, class:^(chameleos)$
 windowrule = pin, class:^(chameleos)$
 
 # as an alternative to manually moving the window in place
-# you can also hardcode its position however you want
+# you can create a script using
+# hyprctl dispatch resizewindowpixel
+# and
+# hyprctl dispatch movewindowpixel
+#
+# unfortunately these windowrules *don't* seem to work
 # windowrule = size, 1920 1080, class:^(chameleos)$
 # windowrule = move, 0 0, class:^(chameleos)$
 ```
