@@ -185,11 +185,17 @@ impl eframe::App for Chameleos {
                         }
                     });
 
-                    if ui.button("Toggle Fill").clicked() {
+                    let toggle_fill_button = egui::Button::new("Toggle Fill").shortcut_text(
+                        ctx.format_shortcut(self.settings.toggle_fill_keybind.shortcut()),
+                    );
+                    if ui.add(toggle_fill_button).clicked() {
                         self.fill = !self.fill;
                     }
 
-                    if ui.button("Hide Menu").clicked() {
+                    let hide_menu_button = egui::Button::new("Hide Menu").shortcut_text(
+                        ctx.format_shortcut(self.settings.toggle_menu_keybind.shortcut()),
+                    );
+                    if ui.add(hide_menu_button).clicked() {
                         self.menu_active = false;
                     }
 
@@ -201,7 +207,10 @@ impl eframe::App for Chameleos {
 
                             ui.separator();
 
-                            if ui.button("Clear Paint").clicked() {
+                            let clear_button = egui::Button::new("Clear").shortcut_text(
+                                ctx.format_shortcut(self.settings.clear_keybind.shortcut()),
+                            );
+                            if ui.add(clear_button).clicked() {
                                 self.clear();
                             }
                         },
@@ -224,7 +233,7 @@ impl eframe::App for Chameleos {
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
-                if ui.input_mut(|i| i.consume_shortcut(&self.settings.toggle_keybind.shortcut())) {
+                if ui.input_mut(|i| i.consume_shortcut(self.settings.toggle_keybind.shortcut())) {
                     if self.passthrough_active {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Title(
                             "chameleos".to_string(),
@@ -238,19 +247,19 @@ impl eframe::App for Chameleos {
                     self.passthrough_active = !self.passthrough_active;
                 }
 
-                if ui.input_mut(|i| i.consume_shortcut(&self.settings.clear_keybind.shortcut())) {
+                if ui.input_mut(|i| i.consume_shortcut(self.settings.clear_keybind.shortcut())) {
                     self.clear();
                 }
 
-                if ui.input_mut(|i| {
-                    i.consume_shortcut(&self.settings.toggle_fill_keybind.shortcut())
-                }) {
+                if ui
+                    .input_mut(|i| i.consume_shortcut(self.settings.toggle_fill_keybind.shortcut()))
+                {
                     self.fill = !self.fill;
                 }
 
-                if ui.input_mut(|i| {
-                    i.consume_shortcut(&self.settings.toggle_menu_keybind.shortcut())
-                }) {
+                if ui
+                    .input_mut(|i| i.consume_shortcut(self.settings.toggle_menu_keybind.shortcut()))
+                {
                     self.menu_active = !self.menu_active;
                 }
 
