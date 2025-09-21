@@ -18,37 +18,94 @@ fn main() -> eframe::Result {
     )
 }
 
+struct Settings {
+    stroke: egui::Stroke,
+    ui_scale: f32,
+    toggle_keybind: egui::KeyboardShortcut,
+    clear_keybind: egui::KeyboardShortcut,
+    toggle_menu_keybind: egui::KeyboardShortcut,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            stroke: egui::Stroke::new(2.0, egui::Color32::PURPLE),
+            ui_scale: 1.5,
+            toggle_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::X),
+            clear_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::C),
+            toggle_menu_keybind: egui::KeyboardShortcut::new(egui::Modifiers::NONE, egui::Key::M),
+        }
+    }
+}
+
+impl Settings {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Ui Scale:");
+            ui.add(egui::Slider::new(&mut self.ui_scale, 0.5..=3.0));
+
+            if ui.button("Apply").clicked() {
+                ui.ctx().set_pixels_per_point(self.ui_scale);
+            }
+        });
+
+        ui.separator();
+
+        ui.heading("Keybinds");
+
+        ui.horizontal(|ui| {
+            ui.label("Toggle:");
+            ui.label(ui.ctx().format_shortcut(&self.toggle_keybind));
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Clear:");
+            ui.label(ui.ctx().format_shortcut(&self.clear_keybind));
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Toggle Menu:");
+            ui.label(ui.ctx().format_shortcut(&self.toggle_menu_keybind));
+        });
+    }
+}
+
 struct Chameleos {
     menu_active: bool,
-
-    ui_scale: f32,
+    settings_active: bool,
 
     lines: Vec<Vec<egui::Pos2>>,
-    stroke: egui::Stroke,
 
     passthrough_active: bool,
     fill: bool,
+
+    settings: Settings,
 }
 
-impl Default for Chameleos {
-    fn default() -> Self {
+impl Chameleos {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // TODO replace with persistance
+        let settings = Settings::default();
+
+        cc.egui_ctx.set_pixels_per_point(settings.ui_scale);
+
         Self {
             menu_active: true,
-
-            ui_scale: 1.0,
+            settings_active: false,
 
             lines: Vec::new(),
-            stroke: egui::Stroke::new(2.0, egui::Color32::PURPLE),
 
             passthrough_active: false,
             fill: true,
+
+            settings,
         }
     }
 }
 
 impl Chameleos {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        Self::default()
+    fn clear(&mut self) {
+        self.lines.clear();
     }
 }
 
@@ -63,39 +120,37 @@ impl eframe::App for Chameleos {
                         ),
                     )
                     .ui(ui, |ui| {
-                        egui::containers::Sides::new().show(
-                            ui,
-                            |ui| {
-                                ui.menu_button("File", |ui| {
-                                    if ui.button("Exit").clicked() {
-                                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                                    }
+                        // NOTE: ideally we'd use egui::containers::Sides
+                        // but that causes borrowing issues
 
-                                    ui.menu_button("Ui Scale", |ui| {
-                                        ui.add(egui::Slider::new(&mut self.ui_scale, 0.5..=3.0));
+                        ui.menu_button("File", |ui| {
+                            if ui.button("Settings").clicked() {
+                                self.settings_active = true;
+                            }
 
-                                        if ui.button("Apply").clicked() {
-                                            ctx.set_pixels_per_point(self.ui_scale);
-                                        }
-                                    });
-                                });
+                            if ui.button("Exit").clicked() {
+                                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                            }
+                        });
 
-                                if ui.button("Toggle Fill").clicked() {
-                                    self.fill = !self.fill;
-                                }
+                        if ui.button("Toggle Fill").clicked() {
+                            self.fill = !self.fill;
+                        }
 
-                                if ui.button("Hide Menu").clicked() {
-                                    self.menu_active = false;
-                                }
-                            },
+                        if ui.button("Hide Menu").clicked() {
+                            self.menu_active = false;
+                        }
+
+                        ui.with_layout(
+                            egui::Layout::right_to_left(ui.layout().vertical_align()),
                             |ui| {
                                 // unfortunately, putting this in a submenu doesn't seem to work :/
-                                ui.add(&mut self.stroke);
+                                ui.add(&mut self.settings.stroke);
 
                                 ui.separator();
 
                                 if ui.button("Clear Paint").clicked() {
-                                    self.lines.clear();
+                                    self.clear();
                                 }
                             },
                         );
@@ -103,10 +158,16 @@ impl eframe::App for Chameleos {
             });
         }
 
+        egui::Window::new("Settings")
+            .open(&mut self.settings_active)
+            .show(ctx, |ui| {
+                self.settings.ui(ui);
+            });
+
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
-                if ui.input(|i| i.key_pressed(egui::Key::C)) {
+                if ui.input_mut(|i| i.consume_shortcut(&self.settings.toggle_keybind)) {
                     if self.passthrough_active {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Title(
                             "chameleos".to_string(),
@@ -118,6 +179,14 @@ impl eframe::App for Chameleos {
                     }
 
                     self.passthrough_active = !self.passthrough_active;
+                }
+
+                if ui.input_mut(|i| i.consume_shortcut(&self.settings.clear_keybind)) {
+                    self.clear();
+                }
+
+                if ui.input_mut(|i| i.consume_shortcut(&self.settings.toggle_menu_keybind)) {
+                    self.menu_active = !self.menu_active;
                 }
 
                 // mostly taken from egui's painting example
@@ -148,7 +217,7 @@ impl eframe::App for Chameleos {
                     .filter(|line| !line.is_empty())
                     .map(|line| {
                         if line.len() >= 2 {
-                            egui::Shape::line(line.clone(), self.stroke)
+                            egui::Shape::line(line.clone(), self.settings.stroke)
                         } else {
                             egui::Shape::circle_filled(line[0], 2.0, egui::Color32::PURPLE)
                         }

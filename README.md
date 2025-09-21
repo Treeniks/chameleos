@@ -46,10 +46,10 @@ windowrule = pin, class:^(chameleos)$
 
 ### Keybinds
 
-When chameleos is in passthrough mode, we need to explicitly tell Hyprland to pass our toggle keybind to Chameleos (making it a global hotkey). Here, as an example, we use `c` as the toggle keybind in Chameleos and use `SUPER+c` to pass it to Chameleos.
+When chameleos is in passthrough mode, we need to explicitly tell Hyprland to pass our toggle keybind to Chameleos (making it a global hotkey). Here, as an example, we use `x` as the toggle keybind in Chameleos and use `SUPER+x` to pass it to Chameleos.
 
 ```
-bind = SUPER, C, pass, class:^(chameleos)$
+bind = SUPER, X, pass, class:^(chameleos)$
 ```
 
 ## Why "Chameleos"?
