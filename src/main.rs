@@ -325,7 +325,11 @@ impl eframe::App for Chameleos {
                         if line.len() >= 2 {
                             egui::Shape::line(line.clone(), self.settings.stroke)
                         } else {
-                            egui::Shape::circle_filled(line[0], 2.0, egui::Color32::PURPLE)
+                            egui::Shape::circle_filled(
+                                line[0],
+                                self.settings.stroke.width * 0.50,
+                                self.settings.stroke.color,
+                            )
                         }
                     });
 
