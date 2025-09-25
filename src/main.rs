@@ -259,13 +259,9 @@ impl eframe::App for Chameleos {
             .show(ctx, |ui| {
                 if ui.input_mut(|i| i.consume_shortcut(self.settings.toggle_keybind.shortcut())) {
                     if self.passthrough_active {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Title(
-                            "chameleos".to_string(),
-                        ));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(false));
                     } else {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Title(
-                            "chameleos-passthrough".to_string(),
-                        ));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(true));
                     }
 
                     self.passthrough_active = !self.passthrough_active;
