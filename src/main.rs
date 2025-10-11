@@ -1,8 +1,7 @@
 #![allow(unused)]
 
-mod vertex;
-use vertex::Screen;
-use vertex::Vertex;
+mod shader;
+use shader::*;
 
 use wgpu::util::DeviceExt;
 use xkbcommon::xkb;
