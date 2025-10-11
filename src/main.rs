@@ -78,6 +78,8 @@ fn main() {
     loop {
         event_queue.blocking_dispatch(&mut state).unwrap();
     }
+
+    // TODO maybe should do some better cleanup?
 }
 
 struct State {
@@ -107,6 +109,8 @@ struct Wgpu {
     surface_config: wgpu::SurfaceConfiguration,
     device: wgpu::Device,
     queue: wgpu::Queue,
+
+    render_pipeline: wgpu::RenderPipeline,
 }
 
 impl State {
@@ -171,7 +175,7 @@ impl State {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &view,
@@ -191,6 +195,10 @@ impl State {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
+
+        render_pass.set_pipeline(&wgpu.render_pipeline);
+        render_pass.draw(0..3, 0..1);
+
         drop(render_pass);
 
         wgpu.queue.submit(Some(encoder.finish()));
@@ -357,11 +365,63 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
 
                 wgpu_surface.configure(&wgpu_device, &wgpu_config);
 
+                // =====
+
+                let shader = wgpu_device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+                let render_pipeline_layout =
+                    wgpu_device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                        label: None,
+                        bind_group_layouts: &[],
+                        push_constant_ranges: &[],
+                    });
+                let render_pipeline =
+                    wgpu_device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                        label: None,
+                        layout: Some(&render_pipeline_layout),
+                        vertex: wgpu::VertexState {
+                            module: &shader,
+                            entry_point: Some("vs_main"),
+                            compilation_options: wgpu::PipelineCompilationOptions::default(),
+                            buffers: &[],
+                        },
+                        fragment: Some(wgpu::FragmentState {
+                            module: &shader,
+                            entry_point: Some("fs_main"),
+                            compilation_options: wgpu::PipelineCompilationOptions::default(),
+                            targets: &[Some(wgpu::ColorTargetState {
+                                format: wgpu_config.format,
+                                // TODO blending might need to be different
+                                blend: Some(wgpu::BlendState::REPLACE),
+                                write_mask: wgpu::ColorWrites::ALL,
+                            })],
+                        }),
+                        primitive: wgpu::PrimitiveState {
+                            topology: wgpu::PrimitiveTopology::TriangleList,
+                            strip_index_format: None,
+                            front_face: wgpu::FrontFace::Ccw,
+                            // NOTE no culling because lyon may not honor it
+                            cull_mode: None,
+                            unclipped_depth: false,
+                            polygon_mode: wgpu::PolygonMode::Fill,
+                            conservative: false,
+                        },
+                        depth_stencil: None,
+                        multisample: wgpu::MultisampleState {
+                            count: 1,
+                            mask: !0,
+                            alpha_to_coverage_enabled: false,
+                        },
+                        multiview: None,
+                        cache: None,
+                    });
+
                 let wgpu = Wgpu {
                     surface: wgpu_surface,
                     surface_config: wgpu_config,
                     device: wgpu_device,
                     queue: wgpu_queue,
+
+                    render_pipeline,
                 };
 
                 state.wpgu = Some(wgpu);

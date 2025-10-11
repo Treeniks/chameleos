@@ -4,11 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-env_logger = "0.11.8"
-pollster = "0.4.0"
-raw-window-handle = "0.6.2"
-wayland-backend = { version = "0.3.11", features = ["client_system"] }
 wayland-client = "0.31.11"
 wayland-protocols-wlr = { version = "0.3.9", features = ["client"] }
-wgpu = "27.0.1"
+# required to get raw window handles
+wayland-backend = { version = "0.3.11", features = ["client_system"] }
+
 xkbcommon = { version = "0.9.0", features = ["wayland"] }
+
+wgpu = "27.0.1"
+raw-window-handle = "0.6.2"
+env_logger = "0.11.8"
+pollster = "0.4.0"
