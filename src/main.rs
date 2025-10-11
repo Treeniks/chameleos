@@ -38,9 +38,6 @@ use wayland_client::protocol::wl_callback::WlCallback;
 use wayland_client::protocol::wl_seat;
 use wayland_client::protocol::wl_seat::WlSeat;
 
-use wayland_client::protocol::wl_buffer;
-use wayland_client::protocol::wl_buffer::WlBuffer;
-
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::ZwlrLayerShellV1;
 
@@ -60,7 +57,7 @@ fn main() {
     let mut event_queue: wayland_client::EventQueue<State> = connection.new_event_queue();
 
     let display = connection.display();
-    let registry = display.get_registry(&event_queue.handle(), ());
+    let _registry = display.get_registry(&event_queue.handle(), ());
 
     let mut state = State {
         active: true,
@@ -89,8 +86,6 @@ fn main() {
 
     loop {
         event_queue.blocking_dispatch(&mut state).unwrap();
-
-        println!("loop");
 
         if sigusr1.load(std::sync::atomic::Ordering::Relaxed) {
             sigusr1.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -419,7 +414,6 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 state.height = height as usize;
 
                 let surface = state.surface();
-                let layer_surface = state.layer_surface();
 
                 let wgpu_instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
                     backends: wgpu::Backends::all(),
@@ -733,6 +727,7 @@ impl Dispatch<WlCallback, ()> for State {
         qhandle: &QueueHandle<Self>,
     ) {
         println!("WlCallback: {:?}", event);
+        state.render();
     }
 }
 
@@ -760,7 +755,7 @@ impl Dispatch<WlKeyboard, ()> for State {
                 // +8 because of conversion from Wayland to X11 keycodes
                 // because X11 reserves the first 8 keycodes
                 let key_code = xkb::Keycode::new(key + 8);
-                let sym = state.xkb_state().key_get_one_sym(key_code);
+                let sym = xkb_state.key_get_one_sym(key_code);
 
                 if sym == xkb::Keysym::c {
                     state.clear();
@@ -825,8 +820,6 @@ impl Dispatch<WlPointer, ()> for State {
                             line.push((new_x, new_y));
                         }
                     }
-
-                    state.render();
                 }
             }
             wl_pointer::Event::Button {
