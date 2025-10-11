@@ -17,6 +17,9 @@ use wayland_client::protocol::wl_keyboard::WlKeyboard;
 use wayland_client::protocol::wl_pointer;
 use wayland_client::protocol::wl_pointer::WlPointer;
 
+use wayland_client::protocol::wl_region;
+use wayland_client::protocol::wl_region::WlRegion;
+
 use wayland_client::protocol::wl_registry;
 use wayland_client::protocol::wl_registry::WlRegistry;
 
@@ -44,6 +47,7 @@ fn main() {
     display.get_registry(&event_queue.handle(), ());
 
     let mut state = State::default();
+    state.active = true;
 
     loop {
         event_queue.blocking_dispatch(&mut state).unwrap();
@@ -52,6 +56,8 @@ fn main() {
 
 #[derive(Default)]
 struct State {
+    active: bool,
+
     compositor: Option<WlCompositor>,
     surface: Option<WlSurface>,
     seat: Option<WlSeat>,
@@ -66,6 +72,39 @@ struct State {
 
     keyboard: Option<WlKeyboard>,
     pointer: Option<WlPointer>,
+}
+
+impl State {
+    fn compositor(&self) -> &WlCompositor {
+        self.compositor.as_ref().unwrap()
+    }
+
+    fn surface(&self) -> &WlSurface {
+        self.surface.as_ref().unwrap()
+    }
+
+    fn shm(&self) -> &WlShm {
+        self.shm.as_ref().unwrap()
+    }
+
+    fn layer_surface(&self) -> &ZwlrLayerSurfaceV1 {
+        self.layer_surface.as_ref().unwrap()
+    }
+
+    fn toggle_input(&self, qhandle: &QueueHandle<Self>) {
+        let compositor = self.compositor();
+        let surface = self.surface();
+        let layer_surface = self.layer_surface();
+
+        if self.active {
+            // make inactive
+            let empty_region = compositor.create_region(qhandle, ());
+            surface.set_input_region(Some(&empty_region));
+            layer_surface
+                .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::None);
+            surface.commit();
+        }
+    }
 }
 
 impl Dispatch<WlRegistry, ()> for State {
@@ -100,7 +139,7 @@ impl Dispatch<WlRegistry, ()> for State {
                     state.shm = Some(shm);
                 }
                 "zwlr_layer_shell_v1" => {
-                    let surface = state.surface.as_ref().unwrap();
+                    let surface = state.surface();
 
                     let layer_shell = registry.bind::<zwlr_layer_shell_v1::ZwlrLayerShellV1, _, _>(
                         name, 4, qhandle, *data,
@@ -154,8 +193,8 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 use memmap2::MmapMut;
                 use nix::sys::memfd;
 
-                let surface = state.surface.as_ref().unwrap();
-                let shm = state.shm.as_ref().unwrap();
+                let surface = state.surface();
+                let shm = state.shm();
 
                 let mem_fd =
                     memfd::memfd_create("chameleos", memfd::MFdFlags::MFD_CLOEXEC).unwrap();
@@ -256,7 +295,6 @@ impl Dispatch<WlSeat, ()> for State {
                 }
                 wayland_client::WEnum::Unknown(_) => {}
             },
-            wl_seat::Event::Name { name } => {}
             _ => {}
         }
     }
@@ -301,6 +339,19 @@ impl Dispatch<WlBuffer, ()> for State {
     }
 }
 
+impl Dispatch<WlRegion, ()> for State {
+    fn event(
+        state: &mut Self,
+        proxy: &WlRegion,
+        event: <WlRegion as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        println!("WlRegion: {:?}", event);
+    }
+}
+
 impl Dispatch<WlKeyboard, ()> for State {
     fn event(
         state: &mut Self,
@@ -311,6 +362,21 @@ impl Dispatch<WlKeyboard, ()> for State {
         qhandle: &QueueHandle<Self>,
     ) {
         println!("WlKeyboard: {:?}", event);
+        match event {
+            wl_keyboard::Event::Key {
+                serial,
+                time,
+                key,
+                state: key_state,
+            } => {
+                if key == 45 {
+                    // X key
+                    state.toggle_input(qhandle);
+                }
+            }
+            wl_keyboard::Event::Keymap { format, fd, size } => {}
+            _ => {}
+        }
     }
 }
 
