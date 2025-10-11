@@ -64,6 +64,8 @@ fn main() {
         width: 0,
         height: 0,
 
+        mouse_x: None,
+        mouse_y: None,
         mouse_button_held: false,
 
         display,
@@ -106,6 +108,9 @@ struct State {
     width: usize,
     height: usize,
 
+    // needs to be to know the mouse position on presses
+    mouse_x: Option<f64>,
+    mouse_y: Option<f64>,
     mouse_button_held: bool,
 
     display: WlDisplay,
@@ -173,6 +178,33 @@ impl State {
         self.render();
     }
 
+    fn add_point_to_line(&mut self) {
+        if let Some(mouse_x) = self.mouse_x
+            && let Some(mouse_y) = self.mouse_y
+        {
+            let new_x = mouse_x as f32;
+            let new_y = self.height as f32 - mouse_y as f32;
+            match self.current_line.last() {
+                Some((x, y)) => {
+                    if f32::abs(x - new_x) + f32::abs(y - new_y) > EPSILON {
+                        self.current_line.push((new_x, new_y));
+                    }
+                }
+                None => {
+                    self.current_line.push((new_x, new_y));
+                }
+            }
+
+            // lines shouldn't get *too* long or it'll cause performance issues
+            // also lyon has an upper limit at some point
+            if self.current_line.len() > 0x800 {
+                self.tessellated_lines
+                    .push(self.tessellate_current_line().unwrap());
+                self.current_line.clear();
+            }
+        }
+    }
+
     fn toggle_input(&mut self, qhandle: &QueueHandle<Self>) {
         let compositor = self.compositor();
         let surface = self.surface();
@@ -212,11 +244,13 @@ impl State {
         let mut geometry: VertexBuffers<Vertex, u16> = VertexBuffers::new();
 
         let mut builder = Path::builder();
-        if line.len() < 2 {
+        if line.len() < 1 {
             return None;
         }
 
         builder.begin(point(line[0].0, line[0].1));
+        // small hack for drawing dots
+        builder.line_to(point(line[0].0, line[0].1));
         for &(x, y) in line.iter().skip(1) {
             builder.line_to(point(x, y));
         }
@@ -799,36 +833,24 @@ impl Dispatch<WlPointer, ()> for State {
                 surface,
                 surface_x,
                 surface_y,
-            } => {}
-            wl_pointer::Event::Leave { serial, surface } => {}
+            } => {
+                state.mouse_x = Some(surface_x);
+                state.mouse_y = Some(surface_y);
+            }
+            wl_pointer::Event::Leave { serial, surface } => {
+                state.mouse_x = None;
+                state.mouse_y = None;
+            }
             wl_pointer::Event::Motion {
                 time,
                 surface_x,
                 surface_y,
             } => {
-                if state.mouse_button_held {
-                    let line = &mut state.current_line;
-                    let new_x = surface_x as f32;
-                    let new_y = state.height as f32 - surface_y as f32;
-                    match line.last() {
-                        Some((x, y)) => {
-                            if f32::abs(x - new_x) + f32::abs(y - new_y) > EPSILON {
-                                line.push((new_x, new_y));
-                            }
-                        }
-                        None => {
-                            line.push((new_x, new_y));
-                        }
-                    }
+                state.mouse_x = Some(surface_x);
+                state.mouse_y = Some(surface_y);
 
-                    // lines shouldn't get *too* long or it'll cause performance issues
-                    // also lyon has an upper limit at some point
-                    if line.len() > 0x800 {
-                        state
-                            .tessellated_lines
-                            .push(state.tessellate_current_line().unwrap());
-                        state.current_line.clear();
-                    }
+                if state.mouse_button_held {
+                    state.add_point_to_line();
                 }
             }
             wl_pointer::Event::Button {
@@ -850,6 +872,8 @@ impl Dispatch<WlPointer, ()> for State {
                             }
                             wl_pointer::ButtonState::Pressed => {
                                 state.mouse_button_held = true;
+                                debug_assert!(state.current_line.is_empty());
+                                state.add_point_to_line();
                             }
                             _ => {}
                         },
