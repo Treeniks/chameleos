@@ -32,12 +32,11 @@ use wayland_client::protocol::wl_region::WlRegion;
 use wayland_client::protocol::wl_registry;
 use wayland_client::protocol::wl_registry::WlRegistry;
 
+use wayland_client::protocol::wl_callback;
+use wayland_client::protocol::wl_callback::WlCallback;
+
 use wayland_client::protocol::wl_seat;
 use wayland_client::protocol::wl_seat::WlSeat;
-
-use wayland_client::protocol::wl_shm;
-use wayland_client::protocol::wl_shm::WlShm;
-use wayland_client::protocol::wl_shm_pool::WlShmPool;
 
 use wayland_client::protocol::wl_buffer;
 use wayland_client::protocol::wl_buffer::WlBuffer;
@@ -54,11 +53,14 @@ const SAMPLE_COUNT: u32 = 4;
 fn main() {
     env_logger::init();
 
+    let sigusr1 = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGUSR1, sigusr1.clone()).unwrap();
+
     let connection = wayland_client::Connection::connect_to_env().unwrap();
     let mut event_queue: wayland_client::EventQueue<State> = connection.new_event_queue();
 
     let display = connection.display();
-    display.get_registry(&event_queue.handle(), ());
+    let registry = display.get_registry(&event_queue.handle(), ());
 
     let mut state = State {
         active: true,
@@ -87,6 +89,18 @@ fn main() {
 
     loop {
         event_queue.blocking_dispatch(&mut state).unwrap();
+
+        println!("loop");
+
+        if sigusr1.load(std::sync::atomic::Ordering::Relaxed) {
+            sigusr1.store(false, std::sync::atomic::Ordering::Relaxed);
+            state.toggle_input(&event_queue.handle());
+        }
+
+        // request new frame
+        // needed so the application doesn't die when disabling interactivity
+        state.surface().frame(&event_queue.handle(), ());
+        state.surface().commit();
     }
 
     // TODO maybe should do some better cleanup?
@@ -159,20 +173,29 @@ impl State {
         self.wpgu.as_ref().unwrap()
     }
 
-    fn toggle_input(&self, qhandle: &QueueHandle<Self>) {
+    fn toggle_input(&mut self, qhandle: &QueueHandle<Self>) {
         let compositor = self.compositor();
         let surface = self.surface();
         let layer_surface = self.layer_surface();
 
         if self.active {
             // make inactive
+            println!("deactivate");
             let empty_region = compositor.create_region(qhandle, ());
             surface.set_input_region(Some(&empty_region));
             layer_surface
                 .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::None);
-            surface.commit();
+        } else {
+            // reset to full region
+            println!("activate");
+            surface.set_input_region(None);
+            layer_surface.set_keyboard_interactivity(
+                zwlr_layer_surface_v1::KeyboardInteractivity::Exclusive,
+            );
         }
-        // TODO make active
+
+        surface.commit();
+        self.active = !self.active;
     }
 
     fn tessellate_current_line(&self) -> Option<lyon::tessellation::VertexBuffers<Vertex, u16>> {
@@ -695,6 +718,19 @@ impl Dispatch<WlRegion, ()> for State {
     }
 }
 
+impl Dispatch<WlCallback, ()> for State {
+    fn event(
+        state: &mut Self,
+        callback: &WlCallback,
+        event: <WlCallback as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        println!("WlCallback: {:?}", event);
+    }
+}
+
 impl Dispatch<WlKeyboard, ()> for State {
     fn event(
         state: &mut Self,
@@ -786,8 +822,6 @@ impl Dispatch<WlPointer, ()> for State {
                     }
 
                     state.render();
-                    // TODO maybe use surface callbacks for redrawing?
-                    // state.surface().frame(qhandle, ());
                 }
             }
             wl_pointer::Event::Button {
