@@ -81,7 +81,8 @@ fn main() {
 
         wpgu: None,
 
-        lines: Vec::new(),
+        current_line: Vec::new(),
+        tessellated_lines: Vec::new(),
     };
 
     loop {
@@ -112,7 +113,8 @@ struct State {
 
     wpgu: Option<Wgpu>,
 
-    lines: Vec<Vec<(f32, f32)>>,
+    current_line: Vec<(f32, f32)>,
+    tessellated_lines: Vec<lyon::tessellation::VertexBuffers<Vertex, u16>>,
 }
 
 struct Wgpu {
@@ -173,9 +175,7 @@ impl State {
         // TODO make active
     }
 
-    fn tessellate(&self) -> lyon::tessellation::VertexBuffers<Vertex, u16> {
-        // TODO cache previous lines
-
+    fn tessellate_current_line(&self) -> Option<lyon::tessellation::VertexBuffers<Vertex, u16>> {
         use lyon::math::point;
         use lyon::path::Path;
         use lyon::tessellation::BuffersBuilder;
@@ -184,20 +184,20 @@ impl State {
         use lyon::tessellation::StrokeVertex;
         use lyon::tessellation::VertexBuffers;
 
+        let line = &self.current_line;
+
         let mut geometry: VertexBuffers<Vertex, u16> = VertexBuffers::new();
 
         let mut builder = Path::builder();
-        for line in self.lines.iter() {
-            if line.len() < 2 {
-                continue;
-            }
-
-            builder.begin(point(line[0].0, line[0].1));
-            for &(x, y) in line.iter().skip(1) {
-                builder.line_to(point(x, y));
-            }
-            builder.end(false);
+        if line.len() < 2 {
+            return None;
         }
+
+        builder.begin(point(line[0].0, line[0].1));
+        for &(x, y) in line.iter().skip(1) {
+            builder.line_to(point(x, y));
+        }
+        builder.end(false);
         let path = builder.build();
 
         let mut tessellator = StrokeTessellator::new();
@@ -216,27 +216,16 @@ impl State {
             )
             .unwrap();
 
-        geometry
+        Some(geometry)
     }
 
     fn render(&self) {
         let wgpu = self.wgpu();
-        let mut geometry = self.tessellate();
+        let mut geometries = self.tessellated_lines.clone();
 
-        for _ in 0..(geometry.indices.len() as u64 % wgpu::COPY_BUFFER_ALIGNMENT) {
-            geometry.indices.push(0);
+        if let Some(current_geometry) = self.tessellate_current_line() {
+            geometries.push(current_geometry);
         }
-
-        wgpu.queue.write_buffer(
-            &wgpu.vertex_buffer,
-            0,
-            bytemuck::cast_slice(&geometry.vertices),
-        );
-        wgpu.queue.write_buffer(
-            &wgpu.index_buffer,
-            0,
-            bytemuck::cast_slice(&geometry.indices),
-        );
 
         let output = match wgpu.surface.get_current_texture() {
             Ok(output) => output,
@@ -281,7 +270,38 @@ impl State {
         render_pass.set_bind_group(0, &wgpu.screen_bind_group, &[]);
         render_pass.set_vertex_buffer(0, wgpu.vertex_buffer.slice(..));
         render_pass.set_index_buffer(wgpu.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.draw_indexed(0..geometry.indices.len() as u32, 0, 0..1);
+
+        let mut v_offset = 0;
+        let mut i_offset = 0;
+        for geometry in geometries.iter_mut() {
+            let i_len = geometry.indices.len();
+
+            // write_buffer wants multiples of `wgpu::COPY_BUFFER_ALIGNMENT`
+            // should be fine for vertices, but indices might not be
+            // hence we also remember the indices length in `i_len`
+            for _ in 0..(geometry.indices.len() as u64 % wgpu::COPY_BUFFER_ALIGNMENT) {
+                geometry.indices.push(0);
+            }
+
+            wgpu.queue.write_buffer(
+                &wgpu.vertex_buffer,
+                v_offset * std::mem::size_of::<Vertex>() as u64,
+                bytemuck::cast_slice(&geometry.vertices),
+            );
+            wgpu.queue.write_buffer(
+                &wgpu.index_buffer,
+                i_offset * std::mem::size_of::<u16>() as u64,
+                bytemuck::cast_slice(&geometry.indices),
+            );
+            render_pass.draw_indexed(
+                i_offset as u32..i_offset as u32 + i_len as u32,
+                v_offset as i32,
+                0..1,
+            );
+
+            v_offset += geometry.vertices.len() as u64;
+            i_offset += geometry.indices.len() as u64;
+        }
 
         drop(render_pass);
 
@@ -751,7 +771,7 @@ impl Dispatch<WlPointer, ()> for State {
                 surface_y,
             } => {
                 if state.mouse_button_held {
-                    let line = state.lines.last_mut().unwrap();
+                    let line = &mut state.current_line;
                     let new_x = surface_x as f32;
                     let new_y = state.height as f32 - surface_y as f32;
                     match line.last() {
@@ -782,10 +802,13 @@ impl Dispatch<WlPointer, ()> for State {
                         wayland_client::WEnum::Value(button_state) => match button_state {
                             wl_pointer::ButtonState::Released => {
                                 state.mouse_button_held = false;
+                                if let Some(tesselated_line) = state.tessellate_current_line() {
+                                    state.tessellated_lines.push(tesselated_line);
+                                }
+                                state.current_line.clear();
                             }
                             wl_pointer::ButtonState::Pressed => {
                                 state.mouse_button_held = true;
-                                state.lines.push(Vec::new());
                             }
                             _ => {}
                         },
