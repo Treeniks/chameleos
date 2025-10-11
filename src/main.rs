@@ -444,224 +444,232 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 width,
                 height,
             } => {
+                state.layer_surface().ack_configure(serial);
+
                 state.width = width as usize;
                 state.height = height as usize;
 
                 let surface = state.surface();
 
-                let wgpu_instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-                    backends: wgpu::Backends::all(),
-                    ..Default::default()
-                });
-
-                let raw_display_handle = raw_window_handle::RawDisplayHandle::Wayland(
-                    raw_window_handle::WaylandDisplayHandle::new(
-                        std::ptr::NonNull::new(state.display.id().as_ptr() as *mut _).unwrap(),
-                    ),
-                );
-                let raw_window_handle = raw_window_handle::RawWindowHandle::Wayland(
-                    raw_window_handle::WaylandWindowHandle::new(
-                        std::ptr::NonNull::new(surface.id().as_ptr() as *mut _).unwrap(),
-                    ),
-                );
-
-                let wgpu_surface = unsafe {
-                    wgpu_instance.create_surface_unsafe(wgpu::SurfaceTargetUnsafe::RawHandle {
-                        raw_display_handle: raw_display_handle,
-                        raw_window_handle: raw_window_handle,
-                    })
-                }
-                .unwrap();
-
-                let wgpu_adapter = pollster::block_on(wgpu_instance.request_adapter(
-                    &wgpu::RequestAdapterOptions {
-                        power_preference: wgpu::PowerPreference::default(),
-                        force_fallback_adapter: false,
-                        compatible_surface: Some(&wgpu_surface),
-                    },
-                ))
-                .unwrap();
-
-                println!("GPU selected: {}", wgpu_adapter.get_info().name);
-
-                let (wgpu_device, wgpu_queue) =
-                    pollster::block_on(wgpu_adapter.request_device(&wgpu::DeviceDescriptor {
-                        label: None,
-                        required_features: wgpu::Features::empty(),
-                        required_limits: wgpu::Limits::default(),
-                        experimental_features: wgpu::ExperimentalFeatures::disabled(),
-                        memory_hints: wgpu::MemoryHints::default(),
-                        trace: wgpu::Trace::Off,
-                    }))
-                    .unwrap();
-
-                let wgpu_surface_caps = wgpu_surface.get_capabilities(&wgpu_adapter);
-                let wgpu_surface_format = wgpu_surface_caps
-                    .formats
-                    .iter()
-                    .find(|f| f.is_srgb())
-                    .copied()
-                    .unwrap_or(wgpu_surface_caps.formats[0]);
-                // only PreMultiplied for now
-                let wgpu_alpha_mode = wgpu_surface_caps
-                    .alpha_modes
-                    .iter()
-                    .find(|a| matches!(a, wgpu::CompositeAlphaMode::PreMultiplied))
-                    .copied()
-                    .unwrap();
-
-                // https://docs.rs/wgpu/latest/wgpu/struct.SurfaceCapabilities.html
-                let wgpu_config = wgpu::SurfaceConfiguration {
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                    format: wgpu_surface_format,
-                    width,
-                    height,
-                    // TODO I think this currently defaults to Fifo (VSync)
-                    present_mode: wgpu_surface_caps.present_modes[0],
-                    desired_maximum_frame_latency: 2,
-                    alpha_mode: wgpu_alpha_mode,
-                    view_formats: vec![],
-                };
-
-                wgpu_surface.configure(&wgpu_device, &wgpu_config);
-
-                let multisampled_texture = wgpu_device.create_texture(&wgpu::TextureDescriptor {
-                    label: None,
-                    size: wgpu::Extent3d {
-                        width: width as u32,
-                        height: height as u32,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: SAMPLE_COUNT,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: wgpu_config.format,
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                    view_formats: &[],
-                });
-                let multisampled_texture_view =
-                    multisampled_texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-                // =====
-
-                let screen = Screen {
-                    size: [width as f32, height as f32],
-                };
-                let screen_buffer =
-                    wgpu_device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: None,
-                        contents: bytemuck::bytes_of(&screen),
-                        usage: wgpu::BufferUsages::UNIFORM,
+                if state.wpgu.is_none() {
+                    let wgpu_instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+                        backends: wgpu::Backends::all(),
+                        ..Default::default()
                     });
 
-                let screen_bind_group_layout =
-                    wgpu_device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                        label: None,
-                        entries: &[wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::VERTEX,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
+                    let raw_display_handle = raw_window_handle::RawDisplayHandle::Wayland(
+                        raw_window_handle::WaylandDisplayHandle::new(
+                            std::ptr::NonNull::new(state.display.id().as_ptr() as *mut _).unwrap(),
+                        ),
+                    );
+                    let raw_window_handle = raw_window_handle::RawWindowHandle::Wayland(
+                        raw_window_handle::WaylandWindowHandle::new(
+                            std::ptr::NonNull::new(surface.id().as_ptr() as *mut _).unwrap(),
+                        ),
+                    );
+
+                    let wgpu_surface = unsafe {
+                        wgpu_instance.create_surface_unsafe(wgpu::SurfaceTargetUnsafe::RawHandle {
+                            raw_display_handle: raw_display_handle,
+                            raw_window_handle: raw_window_handle,
+                        })
+                    }
+                    .unwrap();
+
+                    let wgpu_adapter = pollster::block_on(wgpu_instance.request_adapter(
+                        &wgpu::RequestAdapterOptions {
+                            power_preference: wgpu::PowerPreference::default(),
+                            force_fallback_adapter: false,
+                            compatible_surface: Some(&wgpu_surface),
+                        },
+                    ))
+                    .unwrap();
+
+                    println!("GPU selected: {}", wgpu_adapter.get_info().name);
+
+                    let (wgpu_device, wgpu_queue) =
+                        pollster::block_on(wgpu_adapter.request_device(&wgpu::DeviceDescriptor {
+                            label: None,
+                            required_features: wgpu::Features::empty(),
+                            required_limits: wgpu::Limits::default(),
+                            experimental_features: wgpu::ExperimentalFeatures::disabled(),
+                            memory_hints: wgpu::MemoryHints::default(),
+                            trace: wgpu::Trace::Off,
+                        }))
+                        .unwrap();
+
+                    let wgpu_surface_caps = wgpu_surface.get_capabilities(&wgpu_adapter);
+                    let wgpu_surface_format = wgpu_surface_caps
+                        .formats
+                        .iter()
+                        .find(|f| f.is_srgb())
+                        .copied()
+                        .unwrap_or(wgpu_surface_caps.formats[0]);
+                    // only PreMultiplied for now
+                    let wgpu_alpha_mode = wgpu_surface_caps
+                        .alpha_modes
+                        .iter()
+                        .find(|a| matches!(a, wgpu::CompositeAlphaMode::PreMultiplied))
+                        .copied()
+                        .unwrap();
+
+                    // https://docs.rs/wgpu/latest/wgpu/struct.SurfaceCapabilities.html
+                    let wgpu_config = wgpu::SurfaceConfiguration {
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                        format: wgpu_surface_format,
+                        width,
+                        height,
+                        // docs say this one is guaranteed to work
+                        // and the others look all weird from testing
+                        present_mode: wgpu::PresentMode::Fifo,
+                        desired_maximum_frame_latency: 2,
+                        alpha_mode: wgpu_alpha_mode,
+                        view_formats: vec![],
+                    };
+
+                    wgpu_surface.configure(&wgpu_device, &wgpu_config);
+
+                    let multisampled_texture =
+                        wgpu_device.create_texture(&wgpu::TextureDescriptor {
+                            label: None,
+                            size: wgpu::Extent3d {
+                                width: width as u32,
+                                height: height as u32,
+                                depth_or_array_layers: 1,
                             },
-                            count: None,
-                        }],
-                    });
-                let screen_bind_group = wgpu_device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: None,
-                    layout: &screen_bind_group_layout,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: screen_buffer.as_entire_binding(),
-                    }],
-                });
+                            mip_level_count: 1,
+                            sample_count: SAMPLE_COUNT,
+                            dimension: wgpu::TextureDimension::D2,
+                            format: wgpu_config.format,
+                            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                            view_formats: &[],
+                        });
+                    let multisampled_texture_view =
+                        multisampled_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-                let shader = wgpu_device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
-                let render_pipeline_layout =
-                    wgpu_device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    // =====
+
+                    let screen = Screen {
+                        size: [width as f32, height as f32],
+                    };
+                    let screen_buffer =
+                        wgpu_device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: None,
+                            contents: bytemuck::bytes_of(&screen),
+                            usage: wgpu::BufferUsages::UNIFORM,
+                        });
+
+                    let screen_bind_group_layout =
+                        wgpu_device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                            label: None,
+                            entries: &[wgpu::BindGroupLayoutEntry {
+                                binding: 0,
+                                visibility: wgpu::ShaderStages::VERTEX,
+                                ty: wgpu::BindingType::Buffer {
+                                    ty: wgpu::BufferBindingType::Uniform,
+                                    has_dynamic_offset: false,
+                                    min_binding_size: None,
+                                },
+                                count: None,
+                            }],
+                        });
+                    let screen_bind_group =
+                        wgpu_device.create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: None,
+                            layout: &screen_bind_group_layout,
+                            entries: &[wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: screen_buffer.as_entire_binding(),
+                            }],
+                        });
+
+                    let shader =
+                        wgpu_device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+                    let render_pipeline_layout =
+                        wgpu_device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                            label: None,
+                            bind_group_layouts: &[&screen_bind_group_layout],
+                            push_constant_ranges: &[],
+                        });
+                    let render_pipeline =
+                        wgpu_device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                            label: None,
+                            layout: Some(&render_pipeline_layout),
+                            vertex: wgpu::VertexState {
+                                module: &shader,
+                                entry_point: Some("vs_main"),
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                                buffers: &[Vertex::desc()],
+                            },
+                            fragment: Some(wgpu::FragmentState {
+                                module: &shader,
+                                entry_point: Some("fs_main"),
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                                targets: &[Some(wgpu::ColorTargetState {
+                                    format: wgpu_config.format,
+                                    // TODO blending might need to be different
+                                    blend: Some(wgpu::BlendState::REPLACE),
+                                    write_mask: wgpu::ColorWrites::ALL,
+                                })],
+                            }),
+                            primitive: wgpu::PrimitiveState {
+                                topology: wgpu::PrimitiveTopology::TriangleList,
+                                strip_index_format: None,
+                                front_face: wgpu::FrontFace::Ccw,
+                                // NOTE no culling because lyon may not honor it
+                                cull_mode: None,
+                                unclipped_depth: false,
+                                polygon_mode: wgpu::PolygonMode::Fill,
+                                conservative: false,
+                            },
+                            depth_stencil: None,
+                            multisample: wgpu::MultisampleState {
+                                count: SAMPLE_COUNT,
+                                mask: !0,
+                                alpha_to_coverage_enabled: false,
+                            },
+                            multiview: None,
+                            cache: None,
+                        });
+
+                    let vertex_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
                         label: None,
-                        bind_group_layouts: &[&screen_bind_group_layout],
-                        push_constant_ranges: &[],
+                        // TODO needs to be increased if we run out
+                        size: 0x1000000,
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                        mapped_at_creation: false,
                     });
-                let render_pipeline =
-                    wgpu_device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+
+                    let index_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
                         label: None,
-                        layout: Some(&render_pipeline_layout),
-                        vertex: wgpu::VertexState {
-                            module: &shader,
-                            entry_point: Some("vs_main"),
-                            compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            buffers: &[Vertex::desc()],
-                        },
-                        fragment: Some(wgpu::FragmentState {
-                            module: &shader,
-                            entry_point: Some("fs_main"),
-                            compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            targets: &[Some(wgpu::ColorTargetState {
-                                format: wgpu_config.format,
-                                // TODO blending might need to be different
-                                blend: Some(wgpu::BlendState::REPLACE),
-                                write_mask: wgpu::ColorWrites::ALL,
-                            })],
-                        }),
-                        primitive: wgpu::PrimitiveState {
-                            topology: wgpu::PrimitiveTopology::TriangleList,
-                            strip_index_format: None,
-                            front_face: wgpu::FrontFace::Ccw,
-                            // NOTE no culling because lyon may not honor it
-                            cull_mode: None,
-                            unclipped_depth: false,
-                            polygon_mode: wgpu::PolygonMode::Fill,
-                            conservative: false,
-                        },
-                        depth_stencil: None,
-                        multisample: wgpu::MultisampleState {
-                            count: SAMPLE_COUNT,
-                            mask: !0,
-                            alpha_to_coverage_enabled: false,
-                        },
-                        multiview: None,
-                        cache: None,
+                        // TODO same as above
+                        size: 0x1000000,
+                        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                        mapped_at_creation: false,
                     });
 
-                let vertex_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-                    label: None,
-                    // TODO needs to be increased if we run out
-                    size: 0x1000000,
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    mapped_at_creation: false,
-                });
+                    let wgpu = Wgpu {
+                        surface: wgpu_surface,
+                        surface_config: wgpu_config,
+                        device: wgpu_device,
+                        queue: wgpu_queue,
 
-                let index_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
-                    label: None,
-                    // TODO same as above
-                    size: 0x1000000,
-                    usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-                    mapped_at_creation: false,
-                });
+                        multisampled_texture,
+                        multisampled_texture_view,
 
-                let wgpu = Wgpu {
-                    surface: wgpu_surface,
-                    surface_config: wgpu_config,
-                    device: wgpu_device,
-                    queue: wgpu_queue,
+                        render_pipeline,
 
-                    multisampled_texture,
-                    multisampled_texture_view,
+                        vertex_buffer,
+                        index_buffer,
 
-                    render_pipeline,
+                        screen_buffer,
+                        screen_bind_group,
+                    };
 
-                    vertex_buffer,
-                    index_buffer,
+                    state.wpgu = Some(wgpu);
 
-                    screen_buffer,
-                    screen_bind_group,
-                };
-
-                state.wpgu = Some(wgpu);
-
-                state.render();
+                    state.render();
+                }
             }
             zwlr_layer_surface_v1::Event::Closed => {}
             _ => {}
