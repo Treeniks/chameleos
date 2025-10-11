@@ -1,5 +1,10 @@
 #![allow(unused)]
 
+mod vertex;
+use vertex::Screen;
+use vertex::Vertex;
+
+use wgpu::util::DeviceExt;
 use xkbcommon::xkb;
 
 use wayland_client::Connection;
@@ -72,8 +77,13 @@ fn main() {
 
         wpgu: None,
 
-        v: 0.0,
+        lines: Vec::new(),
     };
+
+    // TODO test line
+    state
+        .lines
+        .push(vec![(20.0, 20.0), (1200.0, 40.0), (500.0, 600.0)]);
 
     loop {
         event_queue.blocking_dispatch(&mut state).unwrap();
@@ -101,7 +111,7 @@ struct State {
 
     wpgu: Option<Wgpu>,
 
-    v: f64,
+    lines: Vec<Vec<(f32, f32)>>,
 }
 
 struct Wgpu {
@@ -111,6 +121,12 @@ struct Wgpu {
     queue: wgpu::Queue,
 
     render_pipeline: wgpu::RenderPipeline,
+
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+
+    screen_buffer: wgpu::Buffer,
+    screen_bind_group: wgpu::BindGroup,
 }
 
 impl State {
@@ -153,10 +169,71 @@ impl State {
         // TODO make active
     }
 
+    fn tessellate(&self) -> lyon::tessellation::VertexBuffers<Vertex, u16> {
+        use lyon::math::point;
+        use lyon::path::Path;
+        use lyon::tessellation::BuffersBuilder;
+        use lyon::tessellation::StrokeOptions;
+        use lyon::tessellation::StrokeTessellator;
+        use lyon::tessellation::StrokeVertex;
+        use lyon::tessellation::VertexBuffers;
+
+        let mut geometry: VertexBuffers<Vertex, u16> = VertexBuffers::new();
+
+        let mut builder = Path::builder();
+        for line in self.lines.iter() {
+            if line.len() < 2 {
+                continue;
+            }
+
+            builder.begin(point(line[0].0, line[0].1));
+            for &(x, y) in line.iter().skip(1) {
+                builder.line_to(point(x, y));
+            }
+            builder.end(false);
+        }
+        let path = builder.build();
+
+        let mut tessellator = StrokeTessellator::new();
+        let stroke_options = StrokeOptions::default()
+            .with_line_width(16.0)
+            .with_line_cap(lyon::path::LineCap::Round)
+            .with_line_join(lyon::path::LineJoin::Round);
+
+        tessellator
+            .tessellate_path(
+                &path,
+                &stroke_options,
+                &mut BuffersBuilder::new(&mut geometry, |vertex: StrokeVertex| Vertex {
+                    position: vertex.position().to_array(),
+                }),
+            )
+            .unwrap();
+
+        geometry
+    }
+
     fn render(&self) {
         let wgpu = self.wgpu();
+        let mut geometry = self.tessellate();
 
-        let r = self.v / self.width as f64;
+        println!("num_vertices: {}", geometry.vertices.len());
+        println!("num_indices: {}", geometry.indices.len());
+
+        for _ in 0..(geometry.indices.len() as u64 % wgpu::COPY_BUFFER_ALIGNMENT) {
+            geometry.indices.push(0);
+        }
+
+        wgpu.queue.write_buffer(
+            &wgpu.vertex_buffer,
+            0,
+            bytemuck::cast_slice(&geometry.vertices),
+        );
+        wgpu.queue.write_buffer(
+            &wgpu.index_buffer,
+            0,
+            bytemuck::cast_slice(&geometry.indices),
+        );
 
         let output = match wgpu.surface.get_current_texture() {
             Ok(output) => output,
@@ -183,10 +260,10 @@ impl State {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r,
+                        r: 0.1,
                         g: 0.2,
                         b: 0.3,
-                        a: 0.5,
+                        a: 1.0,
                     }),
                     store: wgpu::StoreOp::Store,
                 },
@@ -197,7 +274,10 @@ impl State {
         });
 
         render_pass.set_pipeline(&wgpu.render_pipeline);
-        render_pass.draw(0..3, 0..1);
+        render_pass.set_bind_group(0, &wgpu.screen_bind_group, &[]);
+        render_pass.set_vertex_buffer(0, wgpu.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(wgpu.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..geometry.indices.len() as u32, 0, 0..1);
 
         drop(render_pass);
 
@@ -367,11 +447,44 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
 
                 // =====
 
+                let screen = Screen {
+                    size: [width as f32, height as f32],
+                };
+                let screen_buffer =
+                    wgpu_device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None,
+                        contents: bytemuck::bytes_of(&screen),
+                        usage: wgpu::BufferUsages::UNIFORM,
+                    });
+
+                let screen_bind_group_layout =
+                    wgpu_device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                        label: None,
+                        entries: &[wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::VERTEX,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        }],
+                    });
+                let screen_bind_group = wgpu_device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: None,
+                    layout: &screen_bind_group_layout,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: screen_buffer.as_entire_binding(),
+                    }],
+                });
+
                 let shader = wgpu_device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
                 let render_pipeline_layout =
                     wgpu_device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                         label: None,
-                        bind_group_layouts: &[],
+                        bind_group_layouts: &[&screen_bind_group_layout],
                         push_constant_ranges: &[],
                     });
                 let render_pipeline =
@@ -382,7 +495,7 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                             module: &shader,
                             entry_point: Some("vs_main"),
                             compilation_options: wgpu::PipelineCompilationOptions::default(),
-                            buffers: &[],
+                            buffers: &[Vertex::desc()],
                         },
                         fragment: Some(wgpu::FragmentState {
                             module: &shader,
@@ -415,6 +528,22 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                         cache: None,
                     });
 
+                let vertex_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+                    label: None,
+                    // TODO needs to be increased if we run out
+                    size: 0x10000,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                });
+
+                let index_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
+                    label: None,
+                    // TODO same as above
+                    size: 0x10000,
+                    usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                });
+
                 let wgpu = Wgpu {
                     surface: wgpu_surface,
                     surface_config: wgpu_config,
@@ -422,6 +551,12 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                     queue: wgpu_queue,
 
                     render_pipeline,
+
+                    vertex_buffer,
+                    index_buffer,
+
+                    screen_buffer,
+                    screen_bind_group,
                 };
 
                 state.wpgu = Some(wgpu);
@@ -591,8 +726,6 @@ impl Dispatch<WlPointer, ()> for State {
                 surface_x,
                 surface_y,
             } => {
-                state.v = surface_x;
-
                 state.render();
 
                 // TODO maybe use surface callbacks for redrawing?
