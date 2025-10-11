@@ -7,6 +7,9 @@ use wayland_client::Dispatch;
 use wayland_client::Proxy;
 use wayland_client::QueueHandle;
 
+use wayland_client::protocol::wl_display;
+use wayland_client::protocol::wl_display::WlDisplay;
+
 use wayland_client::protocol::wl_compositor;
 use wayland_client::protocol::wl_compositor::WlCompositor;
 
@@ -42,32 +45,40 @@ use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1;
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::ZwlrLayerSurfaceV1;
 
 fn main() {
+    env_logger::init();
+
     let connection = wayland_client::Connection::connect_to_env().unwrap();
     let mut event_queue: wayland_client::EventQueue<State> = connection.new_event_queue();
 
     let display = connection.display();
     display.get_registry(&event_queue.handle(), ());
 
-    let mut state = State::default();
-    state.active = true;
+    let mut state = State {
+        active: true,
+        display,
+        compositor: None,
+        surface: None,
+        seat: None,
+        layer_shell: None,
+        layer_surface: None,
+        keyboard: None,
+        xkb_state: None,
+        pointer: None,
+        wpgu: None,
+    };
 
     loop {
         event_queue.blocking_dispatch(&mut state).unwrap();
     }
 }
 
-#[derive(Default)]
 struct State {
     active: bool,
 
+    display: WlDisplay,
     compositor: Option<WlCompositor>,
     surface: Option<WlSurface>,
     seat: Option<WlSeat>,
-
-    shm: Option<WlShm>,
-    pool: Option<WlShmPool>,
-    buffer: Option<WlBuffer>,
-    mmap: Option<memmap2::MmapMut>,
 
     layer_shell: Option<ZwlrLayerShellV1>,
     layer_surface: Option<ZwlrLayerSurfaceV1>,
@@ -75,6 +86,14 @@ struct State {
     keyboard: Option<WlKeyboard>,
     xkb_state: Option<xkb::State>,
     pointer: Option<WlPointer>,
+
+    wpgu: Option<Wgpu>,
+}
+
+struct Wgpu {
+    surface: wgpu::Surface<'static>,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
 }
 
 impl State {
@@ -86,10 +105,6 @@ impl State {
         self.surface.as_ref().unwrap()
     }
 
-    fn shm(&self) -> &WlShm {
-        self.shm.as_ref().unwrap()
-    }
-
     fn layer_surface(&self) -> &ZwlrLayerSurfaceV1 {
         self.layer_surface.as_ref().unwrap()
     }
@@ -99,6 +114,10 @@ impl State {
     }
     fn xkb_state_mut(&mut self) -> &mut xkb::State {
         self.xkb_state.as_mut().unwrap()
+    }
+
+    fn wgpu(&self) -> &Wgpu {
+        self.wpgu.as_ref().unwrap()
     }
 
     fn toggle_input(&self, qhandle: &QueueHandle<Self>) {
@@ -114,6 +133,7 @@ impl State {
                 .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::None);
             surface.commit();
         }
+        // TODO make active
     }
 }
 
@@ -143,10 +163,6 @@ impl Dispatch<WlRegistry, ()> for State {
                 "wl_seat" => {
                     let seat = registry.bind::<WlSeat, _, _>(name, 9, qhandle, *data);
                     state.seat = Some(seat);
-                }
-                "wl_shm" => {
-                    let shm = registry.bind::<WlShm, _, _>(name, 2, qhandle, *data);
-                    state.shm = Some(shm);
                 }
                 "zwlr_layer_shell_v1" => {
                     let surface = state.surface();
@@ -198,42 +214,127 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 width,
                 height,
             } => {
-                use std::os::fd::AsFd;
-
-                use memmap2::MmapMut;
-                use nix::sys::memfd;
-
                 let surface = state.surface();
-                let shm = state.shm();
+                let layer_surface = state.layer_surface();
 
-                let mem_fd =
-                    memfd::memfd_create("chameleos", memfd::MFdFlags::MFD_CLOEXEC).unwrap();
-                let mem_file = std::fs::File::from(mem_fd);
-                mem_file.set_len((width * height * 4) as u64);
-                let mmap = unsafe { MmapMut::map_mut(&mem_file).unwrap() };
+                let wgpu_instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+                    backends: wgpu::Backends::all(),
+                    ..Default::default()
+                });
 
-                let pool = shm.create_pool(
-                    mem_file.as_fd(),
-                    (width * height * 4) as i32,
-                    qhandle,
-                    *data,
+                let raw_display_handle = raw_window_handle::RawDisplayHandle::Wayland(
+                    raw_window_handle::WaylandDisplayHandle::new(
+                        std::ptr::NonNull::new(state.display.id().as_ptr() as *mut _).unwrap(),
+                    ),
                 );
-                let buffer = pool.create_buffer(
-                    0,
-                    width as i32,
-                    height as i32,
-                    (width * 4) as i32,
-                    wl_shm::Format::Argb8888,
-                    qhandle,
-                    *data,
+                let raw_window_handle = raw_window_handle::RawWindowHandle::Wayland(
+                    raw_window_handle::WaylandWindowHandle::new(
+                        std::ptr::NonNull::new(surface.id().as_ptr() as *mut _).unwrap(),
+                    ),
                 );
 
-                surface.attach(Some(&buffer), 0, 0);
-                surface.commit();
+                let wgpu_surface = unsafe {
+                    wgpu_instance.create_surface_unsafe(wgpu::SurfaceTargetUnsafe::RawHandle {
+                        raw_display_handle: raw_display_handle,
+                        raw_window_handle: raw_window_handle,
+                    })
+                }
+                .unwrap();
 
-                state.pool = Some(pool);
-                state.buffer = Some(buffer);
-                state.mmap = Some(mmap);
+                let wgpu_adapter = pollster::block_on(wgpu_instance.request_adapter(
+                    &wgpu::RequestAdapterOptions {
+                        power_preference: wgpu::PowerPreference::default(),
+                        force_fallback_adapter: false,
+                        compatible_surface: Some(&wgpu_surface),
+                    },
+                ))
+                .unwrap();
+
+                println!("GPU selected: {}", wgpu_adapter.get_info().name);
+
+                let (wgpu_device, wgpu_queue) =
+                    pollster::block_on(wgpu_adapter.request_device(&wgpu::DeviceDescriptor {
+                        label: None,
+                        required_features: wgpu::Features::empty(),
+                        required_limits: wgpu::Limits::default(),
+                        experimental_features: wgpu::ExperimentalFeatures::disabled(),
+                        memory_hints: wgpu::MemoryHints::default(),
+                        trace: wgpu::Trace::Off,
+                    }))
+                    .unwrap();
+
+                let wgpu_surface_caps = wgpu_surface.get_capabilities(&wgpu_adapter);
+                let wgpu_surface_format = wgpu_surface_caps
+                    .formats
+                    .iter()
+                    .find(|f| f.is_srgb())
+                    .copied()
+                    .unwrap_or(wgpu_surface_caps.formats[0]);
+                // only PreMultiplied for now
+                let wgpu_alpha_mode = wgpu_surface_caps
+                    .alpha_modes
+                    .iter()
+                    .find(|a| matches!(a, wgpu::CompositeAlphaMode::PreMultiplied))
+                    .copied()
+                    .unwrap();
+
+                // https://docs.rs/wgpu/latest/wgpu/struct.SurfaceCapabilities.html
+                let wgpu_config = wgpu::SurfaceConfiguration {
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    format: wgpu_surface_format,
+                    width,
+                    height,
+                    // TODO I think this currently defaults to Fifo (VSync)
+                    present_mode: wgpu_surface_caps.present_modes[0],
+                    desired_maximum_frame_latency: 2,
+                    alpha_mode: wgpu_alpha_mode,
+                    view_formats: vec![],
+                };
+
+                wgpu_surface.configure(&wgpu_device, &wgpu_config);
+
+                let wgpu = Wgpu {
+                    surface: wgpu_surface,
+                    device: wgpu_device,
+                    queue: wgpu_queue,
+                };
+
+                // =====
+
+                let output = wgpu.surface.get_current_texture().unwrap();
+                let view = output
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default());
+                let mut encoder = wgpu
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+                let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: None,
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        depth_slice: None,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.1,
+                                g: 0.2,
+                                b: 0.3,
+                                a: 0.5,
+                            }),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+                drop(render_pass);
+
+                wgpu.queue.submit(Some(encoder.finish()));
+                output.present();
+
+                state.wpgu = Some(wgpu);
             }
             zwlr_layer_surface_v1::Event::Closed => {}
             _ => {}
@@ -307,45 +408,6 @@ impl Dispatch<WlSeat, ()> for State {
             },
             _ => {}
         }
-    }
-}
-
-impl Dispatch<WlShm, ()> for State {
-    fn event(
-        state: &mut Self,
-        shm: &WlShm,
-        event: <WlShm as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &QueueHandle<Self>,
-    ) {
-        println!("WlShm: {:?}", event);
-    }
-}
-
-impl Dispatch<WlShmPool, ()> for State {
-    fn event(
-        state: &mut Self,
-        pool: &WlShmPool,
-        event: <WlShmPool as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &QueueHandle<Self>,
-    ) {
-        println!("WlShmPool: {:?}", event);
-    }
-}
-
-impl Dispatch<WlBuffer, ()> for State {
-    fn event(
-        state: &mut Self,
-        buffer: &WlBuffer,
-        event: <WlBuffer as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &QueueHandle<Self>,
-    ) {
-        println!("WlBuffer: {:?}", event);
     }
 }
 
