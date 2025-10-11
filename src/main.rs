@@ -38,6 +38,10 @@ use wayland_client::protocol::wl_callback::WlCallback;
 use wayland_client::protocol::wl_seat;
 use wayland_client::protocol::wl_seat::WlSeat;
 
+use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
+use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::WpCursorShapeDeviceV1;
+use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_manager_v1::WpCursorShapeManagerV1;
+
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::ZwlrLayerShellV1;
 
@@ -79,6 +83,8 @@ fn main() {
         keyboard: None,
         xkb_state: None,
         pointer: None,
+        cursor_shape_manager: None,
+        cursor_shape_device: None,
 
         wpgu: None,
 
@@ -124,6 +130,8 @@ struct State {
     keyboard: Option<WlKeyboard>,
     xkb_state: Option<xkb::State>,
     pointer: Option<WlPointer>,
+    cursor_shape_manager: Option<WpCursorShapeManagerV1>,
+    cursor_shape_device: Option<WpCursorShapeDeviceV1>,
 
     wpgu: Option<Wgpu>,
 
@@ -167,6 +175,14 @@ impl State {
     }
     fn xkb_state_mut(&mut self) -> &mut xkb::State {
         self.xkb_state.as_mut().unwrap()
+    }
+
+    fn cursor_shape_manager(&mut self) -> &WpCursorShapeManagerV1 {
+        self.cursor_shape_manager.as_mut().unwrap()
+    }
+
+    fn cursor_shape_device(&mut self) -> &WpCursorShapeDeviceV1 {
+        self.cursor_shape_device.as_mut().unwrap()
     }
 
     fn wgpu(&self) -> &Wgpu {
@@ -393,6 +409,11 @@ impl Dispatch<WlRegistry, ()> for State {
                 "wl_seat" => {
                     let seat = registry.bind::<WlSeat, _, _>(name, 9, qhandle, *data);
                     state.seat = Some(seat);
+                }
+                "wp_cursor_shape_manager_v1" => {
+                    let cursor_shape_manager =
+                        registry.bind::<WpCursorShapeManagerV1, _, _>(name, 1, qhandle, *data);
+                    state.cursor_shape_manager = Some(cursor_shape_manager);
                 }
                 "zwlr_layer_shell_v1" => {
                     let surface = state.surface();
@@ -736,6 +757,12 @@ impl Dispatch<WlSeat, ()> for State {
 
                     if capabilities.contains(wl_seat::Capability::Pointer) {
                         let pointer = seat.get_pointer(qhandle, *data);
+
+                        let device = state
+                            .cursor_shape_manager()
+                            .get_pointer(&pointer, qhandle, *data);
+
+                        state.cursor_shape_device = Some(device);
                         state.pointer = Some(pointer);
                     }
                 }
@@ -756,6 +783,32 @@ impl Dispatch<WlRegion, ()> for State {
         qhandle: &QueueHandle<Self>,
     ) {
         println!("WlRegion: {:?}", event);
+    }
+}
+
+impl Dispatch<WpCursorShapeManagerV1, ()> for State {
+    fn event(
+        state: &mut Self,
+        manager: &WpCursorShapeManagerV1,
+        event: <WpCursorShapeManagerV1 as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        println!("WpCursorShapeManagerV1: {:?}", event);
+    }
+}
+
+impl Dispatch<WpCursorShapeDeviceV1, ()> for State {
+    fn event(
+        state: &mut Self,
+        device: &WpCursorShapeDeviceV1,
+        event: <WpCursorShapeDeviceV1 as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        println!("WpCursorShapeDeviceV1: {:?}", event);
     }
 }
 
@@ -828,7 +881,7 @@ impl Dispatch<WlKeyboard, ()> for State {
 impl Dispatch<WlPointer, ()> for State {
     fn event(
         state: &mut Self,
-        proxy: &WlPointer,
+        pointer: &WlPointer,
         event: <WlPointer as Proxy>::Event,
         data: &(),
         conn: &Connection,
@@ -844,6 +897,10 @@ impl Dispatch<WlPointer, ()> for State {
             } => {
                 state.mouse_x = Some(surface_x);
                 state.mouse_y = Some(surface_y);
+
+                state
+                    .cursor_shape_device()
+                    .set_shape(serial, CursorShape::Crosshair);
             }
             wl_pointer::Event::Leave { serial, surface } => {
                 state.mouse_x = None;
@@ -890,7 +947,9 @@ impl Dispatch<WlPointer, ()> for State {
                 }
             }
             wl_pointer::Event::Axis { time, axis, value } => {}
-            wl_pointer::Event::Frame => {}
+            wl_pointer::Event::Frame => {
+                // TODO we're supposed to do all the logic here actually
+            }
             wl_pointer::Event::AxisSource { axis_source } => {}
             wl_pointer::Event::AxisStop { time, axis } => {}
             wl_pointer::Event::AxisDiscrete { axis, discrete } => {}

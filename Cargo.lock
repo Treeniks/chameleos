@@ -178,6 +178,7 @@ dependencies = [
  "signal-hook",
  "wayland-backend",
  "wayland-client",
+ "wayland-protocols",
  "wayland-protocols-wlr",
  "wgpu",
  "xkbcommon",

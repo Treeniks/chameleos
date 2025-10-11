@@ -5,16 +5,21 @@ edition = "2024"
 
 [dependencies]
 wayland-client = "0.31.11"
+# layer shell
 wayland-protocols-wlr = { version = "0.3.9", features = ["client"] }
+# cursor shape
+wayland-protocols = { version = "0.32.9", features = ["client", "staging", "unstable"] }
 # required to get raw window handles
 wayland-backend = { version = "0.3.11", features = ["client_system"] }
 
 xkbcommon = { version = "0.9.0", features = ["wayland"] }
 
+signal-hook = "0.3.18"
+
 wgpu = "27.0.1"
 raw-window-handle = "0.6.2"
 env_logger = "0.11.8"
 pollster = "0.4.0"
+
 lyon = "1.0.16"
 bytemuck = "1.24.0"
-signal-hook = "0.3.18"
