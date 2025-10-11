@@ -173,6 +173,11 @@ impl State {
         self.wpgu.as_ref().unwrap()
     }
 
+    fn clear(&mut self) {
+        self.tessellated_lines.clear();
+        self.render();
+    }
+
     fn toggle_input(&mut self, qhandle: &QueueHandle<Self>) {
         let compositor = self.compositor();
         let surface = self.surface();
@@ -757,8 +762,8 @@ impl Dispatch<WlKeyboard, ()> for State {
                 let key_code = xkb::Keycode::new(key + 8);
                 let sym = state.xkb_state().key_get_one_sym(key_code);
 
-                if sym == xkb::Keysym::x {
-                    state.toggle_input(qhandle);
+                if sym == xkb::Keysym::c {
+                    state.clear();
                 }
             }
             wl_keyboard::Event::Keymap { format, fd, size } => match format {
