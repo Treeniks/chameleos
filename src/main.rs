@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use xkbcommon::xkb;
+
 use wayland_client::Connection;
 use wayland_client::Dispatch;
 use wayland_client::Proxy;
@@ -71,6 +73,7 @@ struct State {
     layer_surface: Option<ZwlrLayerSurfaceV1>,
 
     keyboard: Option<WlKeyboard>,
+    xkb_state: Option<xkb::State>,
     pointer: Option<WlPointer>,
 }
 
@@ -89,6 +92,13 @@ impl State {
 
     fn layer_surface(&self) -> &ZwlrLayerSurfaceV1 {
         self.layer_surface.as_ref().unwrap()
+    }
+
+    fn xkb_state(&self) -> &xkb::State {
+        self.xkb_state.as_ref().unwrap()
+    }
+    fn xkb_state_mut(&mut self) -> &mut xkb::State {
+        self.xkb_state.as_mut().unwrap()
     }
 
     fn toggle_input(&self, qhandle: &QueueHandle<Self>) {
@@ -369,12 +379,36 @@ impl Dispatch<WlKeyboard, ()> for State {
                 key,
                 state: key_state,
             } => {
-                if key == 45 {
-                    // X key
+                let xkb_state = state.xkb_state_mut();
+
+                // TODO update xkb_state
+
+                // +8 because of conversion from Wayland to X11 keycodes
+                // because X11 reserves the first 8 keycodes
+                let key_code = xkb::Keycode::new(key + 8);
+                let sym = state.xkb_state().key_get_one_sym(key_code);
+
+                if sym == xkb::Keysym::x {
                     state.toggle_input(qhandle);
                 }
             }
-            wl_keyboard::Event::Keymap { format, fd, size } => {}
+            wl_keyboard::Event::Keymap { format, fd, size } => match format {
+                wayland_client::WEnum::Value(format) => {
+                    let keymap = unsafe {
+                        xkb::Keymap::new_from_fd(
+                            &xkb::Context::new(xkb::CONTEXT_NO_FLAGS),
+                            fd,
+                            size as usize,
+                            format as u32,
+                            xkb::KEYMAP_COMPILE_NO_FLAGS,
+                        )
+                        .unwrap()
+                        .unwrap()
+                    };
+                    state.xkb_state = Some(xkb::State::new(&keymap));
+                }
+                wayland_client::WEnum::Unknown(_) => {}
+            },
             _ => {}
         }
     }
