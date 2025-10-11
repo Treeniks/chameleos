@@ -48,6 +48,8 @@ use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::ZwlrLay
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1;
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::ZwlrLayerSurfaceV1;
 
+const EPSILON: f32 = 5.0;
+
 fn main() {
     env_logger::init();
 
@@ -61,6 +63,8 @@ fn main() {
         active: true,
         width: 0,
         height: 0,
+
+        mouse_button_held: false,
 
         display,
         compositor: None,
@@ -79,11 +83,6 @@ fn main() {
         lines: Vec::new(),
     };
 
-    // TODO test line
-    state
-        .lines
-        .push(vec![(20.0, 20.0), (1200.0, 40.0), (500.0, 600.0)]);
-
     loop {
         event_queue.blocking_dispatch(&mut state).unwrap();
     }
@@ -95,6 +94,8 @@ struct State {
     active: bool,
     width: usize,
     height: usize,
+
+    mouse_button_held: bool,
 
     display: WlDisplay,
     compositor: Option<WlCompositor>,
@@ -169,6 +170,8 @@ impl State {
     }
 
     fn tessellate(&self) -> lyon::tessellation::VertexBuffers<Vertex, u16> {
+        // TODO cache previous lines
+
         use lyon::math::point;
         use lyon::path::Path;
         use lyon::tessellation::BuffersBuilder;
@@ -259,10 +262,10 @@ impl State {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.1,
-                        g: 0.2,
-                        b: 0.3,
-                        a: 1.0,
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.0,
                     }),
                     store: wgpu::StoreOp::Store,
                 },
@@ -530,7 +533,7 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 let vertex_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
                     label: None,
                     // TODO needs to be increased if we run out
-                    size: 0x10000,
+                    size: 0x1000000,
                     usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     mapped_at_creation: false,
                 });
@@ -538,7 +541,7 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 let index_buffer = wgpu_device.create_buffer(&wgpu::BufferDescriptor {
                     label: None,
                     // TODO same as above
-                    size: 0x10000,
+                    size: 0x1000000,
                     usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
                     mapped_at_creation: false,
                 });
@@ -725,17 +728,49 @@ impl Dispatch<WlPointer, ()> for State {
                 surface_x,
                 surface_y,
             } => {
-                state.render();
+                if state.mouse_button_held {
+                    let line = state.lines.last_mut().unwrap();
+                    let new_x = surface_x as f32;
+                    let new_y = state.height as f32 - surface_y as f32;
+                    match line.last() {
+                        Some((x, y)) => {
+                            if f32::abs(x - new_x) + f32::abs(y - new_y) > EPSILON {
+                                line.push((new_x, new_y));
+                            }
+                        }
+                        None => {
+                            line.push((new_x, new_y));
+                        }
+                    }
 
-                // TODO maybe use surface callbacks for redrawing?
-                // state.surface().frame(qhandle, ());
+                    state.render();
+                    // TODO maybe use surface callbacks for redrawing?
+                    // state.surface().frame(qhandle, ());
+                }
             }
             wl_pointer::Event::Button {
                 serial,
                 time,
                 button,
-                state,
-            } => {}
+                state: button_state,
+            } => {
+                // left mouse button
+                if button == 272 {
+                    match button_state {
+                        wayland_client::WEnum::Value(button_state) => match button_state {
+                            wl_pointer::ButtonState::Released => {
+                                state.mouse_button_held = false;
+                            }
+                            wl_pointer::ButtonState::Pressed => {
+                                state.mouse_button_held = true;
+                                state.lines.push(Vec::new());
+                            }
+                            _ => {}
+                        },
+                        wayland_client::WEnum::Unknown(_) => {}
+                    }
+                }
+            }
             wl_pointer::Event::Axis { time, axis, value } => {}
             wl_pointer::Event::Frame => {}
             wl_pointer::Event::AxisSource { axis_source } => {}
