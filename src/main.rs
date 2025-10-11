@@ -55,16 +55,24 @@ fn main() {
 
     let mut state = State {
         active: true,
+        width: 0,
+        height: 0,
+
         display,
         compositor: None,
         surface: None,
         seat: None,
+
         layer_shell: None,
         layer_surface: None,
+
         keyboard: None,
         xkb_state: None,
         pointer: None,
+
         wpgu: None,
+
+        v: 0.0,
     };
 
     loop {
@@ -74,6 +82,8 @@ fn main() {
 
 struct State {
     active: bool,
+    width: usize,
+    height: usize,
 
     display: WlDisplay,
     compositor: Option<WlCompositor>,
@@ -88,10 +98,13 @@ struct State {
     pointer: Option<WlPointer>,
 
     wpgu: Option<Wgpu>,
+
+    v: f64,
 }
 
 struct Wgpu {
     surface: wgpu::Surface<'static>,
+    surface_config: wgpu::SurfaceConfiguration,
     device: wgpu::Device,
     queue: wgpu::Queue,
 }
@@ -134,6 +147,54 @@ impl State {
             surface.commit();
         }
         // TODO make active
+    }
+
+    fn render(&self) {
+        let wgpu = self.wgpu();
+
+        let r = self.v / self.width as f64;
+
+        let output = match wgpu.surface.get_current_texture() {
+            Ok(output) => output,
+            Err(wgpu::SurfaceError::Outdated) => {
+                wgpu.surface.configure(&wgpu.device, &wgpu.surface_config);
+                wgpu.surface.get_current_texture().unwrap()
+            }
+            _ => {
+                panic!();
+            }
+        };
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = wgpu
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r,
+                        g: 0.2,
+                        b: 0.3,
+                        a: 0.5,
+                    }),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        drop(render_pass);
+
+        wgpu.queue.submit(Some(encoder.finish()));
+        output.present();
     }
 }
 
@@ -214,6 +275,9 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 width,
                 height,
             } => {
+                state.width = width as usize;
+                state.height = height as usize;
+
                 let surface = state.surface();
                 let layer_surface = state.layer_surface();
 
@@ -295,46 +359,14 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
 
                 let wgpu = Wgpu {
                     surface: wgpu_surface,
+                    surface_config: wgpu_config,
                     device: wgpu_device,
                     queue: wgpu_queue,
                 };
 
-                // =====
-
-                let output = wgpu.surface.get_current_texture().unwrap();
-                let view = output
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default());
-                let mut encoder = wgpu
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-                let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: None,
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        depth_slice: None,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.1,
-                                g: 0.2,
-                                b: 0.3,
-                                a: 0.5,
-                            }),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                });
-                drop(render_pass);
-
-                wgpu.queue.submit(Some(encoder.finish()));
-                output.present();
-
                 state.wpgu = Some(wgpu);
+
+                state.render();
             }
             zwlr_layer_surface_v1::Event::Closed => {}
             _ => {}
@@ -486,5 +518,40 @@ impl Dispatch<WlPointer, ()> for State {
         qhandle: &QueueHandle<Self>,
     ) {
         println!("WlPointer: {:?}", event);
+        match event {
+            wl_pointer::Event::Enter {
+                serial,
+                surface,
+                surface_x,
+                surface_y,
+            } => {}
+            wl_pointer::Event::Leave { serial, surface } => {}
+            wl_pointer::Event::Motion {
+                time,
+                surface_x,
+                surface_y,
+            } => {
+                state.v = surface_x;
+
+                state.render();
+
+                // TODO maybe use surface callbacks for redrawing?
+                // state.surface().frame(qhandle, ());
+            }
+            wl_pointer::Event::Button {
+                serial,
+                time,
+                button,
+                state,
+            } => {}
+            wl_pointer::Event::Axis { time, axis, value } => {}
+            wl_pointer::Event::Frame => {}
+            wl_pointer::Event::AxisSource { axis_source } => {}
+            wl_pointer::Event::AxisStop { time, axis } => {}
+            wl_pointer::Event::AxisDiscrete { axis, discrete } => {}
+            wl_pointer::Event::AxisValue120 { axis, value120 } => {}
+            wl_pointer::Event::AxisRelativeDirection { axis, direction } => {}
+            _ => {}
+        }
     }
 }
