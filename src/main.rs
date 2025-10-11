@@ -49,6 +49,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1;
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::ZwlrLayerSurfaceV1;
 
 const EPSILON: f32 = 5.0;
+const SAMPLE_COUNT: u32 = 4;
 
 fn main() {
     env_logger::init();
@@ -119,6 +120,9 @@ struct Wgpu {
     surface_config: wgpu::SurfaceConfiguration,
     device: wgpu::Device,
     queue: wgpu::Queue,
+
+    multisampled_texture: wgpu::Texture,
+    multisampled_texture_view: wgpu::TextureView,
 
     render_pipeline: wgpu::RenderPipeline,
 
@@ -219,9 +223,6 @@ impl State {
         let wgpu = self.wgpu();
         let mut geometry = self.tessellate();
 
-        println!("num_vertices: {}", geometry.vertices.len());
-        println!("num_indices: {}", geometry.indices.len());
-
         for _ in 0..(geometry.indices.len() as u64 % wgpu::COPY_BUFFER_ALIGNMENT) {
             geometry.indices.push(0);
         }
@@ -247,7 +248,8 @@ impl State {
                 panic!();
             }
         };
-        let view = output
+
+        let swapchain_view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = wgpu
@@ -257,9 +259,9 @@ impl State {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
+                view: &wgpu.multisampled_texture_view,
                 depth_slice: None,
-                resolve_target: None,
+                resolve_target: Some(&swapchain_view),
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
                         r: 0.0,
@@ -447,6 +449,23 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
 
                 wgpu_surface.configure(&wgpu_device, &wgpu_config);
 
+                let multisampled_texture = wgpu_device.create_texture(&wgpu::TextureDescriptor {
+                    label: None,
+                    size: wgpu::Extent3d {
+                        width: width as u32,
+                        height: height as u32,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: SAMPLE_COUNT,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu_config.format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                });
+                let multisampled_texture_view =
+                    multisampled_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
                 // =====
 
                 let screen = Screen {
@@ -522,7 +541,7 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                         },
                         depth_stencil: None,
                         multisample: wgpu::MultisampleState {
-                            count: 1,
+                            count: SAMPLE_COUNT,
                             mask: !0,
                             alpha_to_coverage_enabled: false,
                         },
@@ -551,6 +570,9 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                     surface_config: wgpu_config,
                     device: wgpu_device,
                     queue: wgpu_queue,
+
+                    multisampled_texture,
+                    multisampled_texture_view,
 
                     render_pipeline,
 
