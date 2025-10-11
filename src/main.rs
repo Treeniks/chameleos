@@ -820,6 +820,15 @@ impl Dispatch<WlPointer, ()> for State {
                             line.push((new_x, new_y));
                         }
                     }
+
+                    // lines shouldn't get *too* long or it'll cause performance issues
+                    // also lyon has an upper limit at some point
+                    if line.len() > 0x800 {
+                        state
+                            .tessellated_lines
+                            .push(state.tessellate_current_line().unwrap());
+                        state.current_line.clear();
+                    }
                 }
             }
             wl_pointer::Event::Button {
