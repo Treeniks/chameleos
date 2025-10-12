@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use std::collections::HashMap;
 use std::io::Read;
 
 mod shader;
@@ -8,6 +9,7 @@ use shader::*;
 mod render;
 use render::*;
 
+use wayland_backend::client::ObjectId;
 use wayland_client::Connection;
 use wayland_client::Dispatch;
 use wayland_client::Proxy;
@@ -36,6 +38,13 @@ use wayland_client::protocol::wl_callback::WlCallback;
 
 use wayland_client::protocol::wl_seat;
 use wayland_client::protocol::wl_seat::WlSeat;
+
+use wayland_protocols::wp::tablet::zv2::client::zwp_tablet_manager_v2::ZwpTabletManagerV2;
+use wayland_protocols::wp::tablet::zv2::client::zwp_tablet_pad_v2::ZwpTabletPadV2;
+use wayland_protocols::wp::tablet::zv2::client::zwp_tablet_seat_v2::*;
+use wayland_protocols::wp::tablet::zv2::client::zwp_tablet_tool_v2;
+use wayland_protocols::wp::tablet::zv2::client::zwp_tablet_tool_v2::ZwpTabletToolV2;
+use wayland_protocols::wp::tablet::zv2::client::zwp_tablet_v2::ZwpTabletV2;
 
 use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::WpCursorShapeDeviceV1;
@@ -142,6 +151,11 @@ fn main() {
         layer_shell: None,
         layer_surface: None,
 
+        tablet_manager: None,
+        tablet_seat: None,
+        // will usually only ever be one anyway
+        tablet_cursor_shape_devices: HashMap::new(),
+
         pointer: None,
         cursor_shape_manager: None,
         cursor_shape_device: None,
@@ -227,6 +241,10 @@ struct State {
     layer_shell: Option<ZwlrLayerShellV1>,
     layer_surface: Option<ZwlrLayerSurfaceV1>,
 
+    tablet_manager: Option<ZwpTabletManagerV2>,
+    tablet_seat: Option<ZwpTabletSeatV2>,
+    tablet_cursor_shape_devices: HashMap<ObjectId, WpCursorShapeDeviceV1>,
+
     pointer: Option<WlPointer>,
     cursor_shape_manager: Option<WpCursorShapeManagerV1>,
     cursor_shape_device: Option<WpCursorShapeDeviceV1>,
@@ -250,6 +268,14 @@ impl State {
 
     fn layer_surface(&self) -> &ZwlrLayerSurfaceV1 {
         self.layer_surface.as_ref().unwrap()
+    }
+
+    fn seat(&self) -> &WlSeat {
+        self.seat.as_ref().unwrap()
+    }
+
+    fn tablet_manager(&self) -> &ZwpTabletManagerV2 {
+        self.tablet_manager.as_ref().unwrap()
     }
 
     fn cursor_shape_manager(&mut self) -> &WpCursorShapeManagerV1 {
@@ -433,6 +459,11 @@ impl Dispatch<WlRegistry, ()> for State {
                         registry.bind::<WpCursorShapeManagerV1, _, _>(name, 1, qhandle, *data);
                     state.cursor_shape_manager = Some(cursor_shape_manager);
                 }
+                "zwp_tablet_manager_v2" => {
+                    let tablet_manager =
+                        registry.bind::<ZwpTabletManagerV2, _, _>(name, 1, qhandle, *data);
+                    state.tablet_manager = Some(tablet_manager);
+                }
                 "zwlr_layer_shell_v1" => {
                     let surface = state.surface();
 
@@ -570,6 +601,10 @@ impl Dispatch<WlSeat, ()> for State {
                 }
                 wayland_client::WEnum::Unknown(_) => {}
             },
+            wl_seat::Event::Name { name } => {
+                state.tablet_seat =
+                    Some(state.tablet_manager().get_tablet_seat(seat, qhandle, *data));
+            }
             _ => {}
         }
     }
@@ -625,6 +660,148 @@ impl Dispatch<WlCallback, ()> for State {
     ) {
         wdprintln!(state, "WlCallback: {:?}", event);
         state.render();
+    }
+}
+
+impl Dispatch<ZwpTabletManagerV2, ()> for State {
+    fn event(
+        state: &mut Self,
+        tablet_manager: &ZwpTabletManagerV2,
+        event: <ZwpTabletManagerV2 as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        wdprintln!(state, "ZwpTabletManagerV2: {:?}", event);
+    }
+}
+
+impl Dispatch<ZwpTabletSeatV2, ()> for State {
+    fn event(
+        state: &mut Self,
+        tablet_seat: &ZwpTabletSeatV2,
+        event: <ZwpTabletSeatV2 as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        wdprintln!(state, "ZwpTabletSeatV2: {:?}", event);
+        match event {
+            Event::TabletAdded { id } => {}
+            Event::ToolAdded { id } => {
+                let cursor_shape_device = state
+                    .cursor_shape_manager()
+                    .get_tablet_tool_v2(&id, qhandle, *data);
+                state
+                    .tablet_cursor_shape_devices
+                    .insert(id.id(), cursor_shape_device);
+            }
+            Event::PadAdded { id } => {}
+            _ => {}
+        }
+    }
+
+    wayland_client::event_created_child!(State, ZwpTabletSeatV2, [
+        EVT_PAD_ADDED_OPCODE => (ZwpTabletPadV2, ()),
+        EVT_TABLET_ADDED_OPCODE => (ZwpTabletV2, ()),
+        EVT_TOOL_ADDED_OPCODE => (ZwpTabletToolV2, ()),
+    ]);
+}
+
+impl Dispatch<ZwpTabletV2, ()> for State {
+    fn event(
+        state: &mut Self,
+        tablet: &ZwpTabletV2,
+        event: <ZwpTabletV2 as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        wdprintln!(state, "ZwpTabletV2: {:?}", event);
+    }
+}
+
+impl Dispatch<ZwpTabletPadV2, ()> for State {
+    fn event(
+        state: &mut Self,
+        pad: &ZwpTabletPadV2,
+        event: <ZwpTabletPadV2 as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        wdprintln!(state, "ZwpTabletPadV2: {:?}", event);
+    }
+}
+
+impl Dispatch<ZwpTabletToolV2, ()> for State {
+    fn event(
+        state: &mut Self,
+        tool: &ZwpTabletToolV2,
+        event: <ZwpTabletToolV2 as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        wdprintln!(state, "ZwpTabletToolV2: {:?}", event);
+        match event {
+            zwp_tablet_tool_v2::Event::Type { tool_type } => {}
+            zwp_tablet_tool_v2::Event::HardwareSerial {
+                hardware_serial_hi,
+                hardware_serial_lo,
+            } => {}
+            zwp_tablet_tool_v2::Event::HardwareIdWacom {
+                hardware_id_hi,
+                hardware_id_lo,
+            } => {}
+            zwp_tablet_tool_v2::Event::Capability { capability } => {}
+            zwp_tablet_tool_v2::Event::Done => {}
+            zwp_tablet_tool_v2::Event::Removed => {}
+            zwp_tablet_tool_v2::Event::ProximityIn {
+                serial,
+                tablet,
+                surface,
+            } => {
+                state.tablet_cursor_shape_devices[&tool.id()]
+                    .set_shape(serial, CursorShape::Crosshair);
+            }
+            zwp_tablet_tool_v2::Event::ProximityOut => {}
+            zwp_tablet_tool_v2::Event::Down { serial } => {
+                state.mouse_button_held = true;
+                debug_assert!(state.current_line.is_empty());
+                state.add_point_to_line();
+            }
+            zwp_tablet_tool_v2::Event::Up => {
+                state.mouse_button_held = false;
+                if let Some(tesselated_line) = state.tessellate_current_line() {
+                    state.tessellated_lines.push(tesselated_line);
+                }
+                state.current_line.clear();
+            }
+            zwp_tablet_tool_v2::Event::Motion { x, y } => {
+                state.mouse_x = Some(x);
+                state.mouse_y = Some(y);
+
+                if state.mouse_button_held {
+                    state.add_point_to_line();
+                }
+            }
+            zwp_tablet_tool_v2::Event::Pressure { pressure } => {}
+            zwp_tablet_tool_v2::Event::Distance { distance } => {}
+            zwp_tablet_tool_v2::Event::Tilt { tilt_x, tilt_y } => {}
+            zwp_tablet_tool_v2::Event::Rotation { degrees } => {}
+            zwp_tablet_tool_v2::Event::Slider { position } => {}
+            zwp_tablet_tool_v2::Event::Wheel { degrees, clicks } => {}
+            zwp_tablet_tool_v2::Event::Button {
+                serial,
+                button,
+                state,
+            } => {}
+            zwp_tablet_tool_v2::Event::Frame { time } => {
+                // TODO same as pointer, logic should be handled here instead
+            }
+            _ => todo!(),
+        }
     }
 }
 
