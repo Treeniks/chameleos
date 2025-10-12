@@ -16,17 +16,24 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     Toggle,
+    Clear,
+    StrokeWidth { width: f32 },
     Exit,
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
     let socket_name = "chameleos.sock".to_ns_name::<GenericNamespaced>().unwrap();
     let mut stream = Stream::connect(socket_name).unwrap();
 
     match cli.command {
-        Command::Toggle => stream.write_all(b"toggle").unwrap(),
-        Command::Exit => stream.write_all(b"exit").unwrap(),
+        Command::Toggle => stream.write_all(b"toggle"),
+        Command::Clear => stream.write_all(b"clear"),
+        Command::StrokeWidth { width } => {
+            let s = format!("stroke_width {}", width);
+            stream.write_all(s.as_bytes())
+        }
+        Command::Exit => stream.write_all(b"exit"),
     }
 }

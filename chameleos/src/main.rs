@@ -171,12 +171,26 @@ fn main() {
                 String::from_utf8_lossy(&listener_buffer)
             );
 
-            match listener_buffer.as_slice() {
-                b"toggle" => {
-                    state.toggle_input(&event_queue.handle());
+            let mut split = listener_buffer.split(|&c| c == b' ');
+
+            match split.next() {
+                Some(b"toggle") => state.toggle_input(&event_queue.handle()),
+                Some(b"clear") => state.clear(),
+                Some(b"stroke_width") => {
+                    match split
+                        .next()
+                        .and_then(|width_text| String::from_utf8(width_text.to_vec()).ok())
+                        .and_then(|width_text| width_text.parse::<f32>().ok())
+                    {
+                        Some(width) => state.stroke_width = width,
+                        None => {
+                            eprintln!("received stroke width message but couldn't parse a width")
+                        }
+                    }
                 }
-                b"exit" => break,
-                _ => {}
+                Some(b"exit") => break,
+                Some(message) => eprintln!("unknown message: {}", String::from_utf8_lossy(message)),
+                None => eprintln!("received empty message"),
             }
 
             listener_buffer.clear();
