@@ -304,6 +304,7 @@ impl State {
     fn undo(&mut self) {
         if self.current_line.is_empty() {
             self.tessellated_lines.pop();
+            self.tessellated_lines_source.pop();
         } else {
             self.current_line.clear();
         }
@@ -311,6 +312,7 @@ impl State {
 
     fn clear(&mut self) {
         self.tessellated_lines.clear();
+        self.tessellated_lines_source.clear();
         self.current_line.clear();
     }
 
