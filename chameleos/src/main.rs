@@ -257,11 +257,16 @@ impl State {
     }
 
     fn undo(&mut self) {
-        self.tessellated_lines.pop();
+        if self.current_line.is_empty() {
+            self.tessellated_lines.pop();
+        } else {
+            self.current_line.clear();
+        }
     }
 
     fn clear(&mut self) {
         self.tessellated_lines.clear();
+        self.current_line.clear();
     }
 
     fn add_point_to_line(&mut self) {
