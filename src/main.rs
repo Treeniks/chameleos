@@ -53,8 +53,27 @@ use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::ZwlrL
 const EPSILON: f32 = 5.0;
 const SAMPLE_COUNT: u32 = 4;
 
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+struct Cli {
+    /// Turn on debug printing
+    #[arg(long)]
+    debug: bool,
+}
+
+macro_rules! dprintln {
+    ($state:expr, $($arg:tt)*) => {
+        if $state.debug {
+            println!($($arg)*);
+        }
+    };
+}
+
 fn main() {
     env_logger::init();
+
+    let cli = Cli::parse();
 
     let sigusr1 = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGUSR1, sigusr1.clone()).unwrap();
@@ -66,6 +85,8 @@ fn main() {
     let _registry = display.get_registry(&event_queue.handle(), ());
 
     let mut state = State {
+        debug: cli.debug,
+
         active: true,
         width: 0,
         height: 0,
@@ -112,6 +133,8 @@ fn main() {
 }
 
 struct State {
+    debug: bool,
+
     active: bool,
     width: usize,
     height: usize,
@@ -212,14 +235,14 @@ impl State {
 
         if self.active {
             // make inactive
-            println!("deactivate");
+            dprintln!(self, "deactivate");
             let empty_region = compositor.create_region(qhandle, ());
             surface.set_input_region(Some(&empty_region));
             layer_surface
                 .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::None);
         } else {
             // reset to full region
-            println!("activate");
+            dprintln!(self, "activate");
             surface.set_input_region(None);
             layer_surface.set_keyboard_interactivity(
                 zwlr_layer_surface_v1::KeyboardInteractivity::Exclusive,
@@ -298,7 +321,7 @@ impl Dispatch<WlRegistry, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WlRegistry: {:?}", event);
+        dprintln!(state, "WlRegistry: {:?}", event);
         match event {
             wl_registry::Event::Global {
                 name,
@@ -363,7 +386,7 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("LayerSurface: {:?}", event);
+        dprintln!(state, "LayerSurface: {:?}", event);
         match event {
             zwlr_layer_surface_v1::Event::Configure {
                 serial,
@@ -396,7 +419,7 @@ impl Dispatch<ZwlrLayerShellV1, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("LayerShell: {:?}", event);
+        dprintln!(state, "LayerShell: {:?}", event);
     }
 }
 
@@ -409,7 +432,7 @@ impl Dispatch<WlCompositor, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WlCompositor: {:?}", event);
+        dprintln!(state, "WlCompositor: {:?}", event);
     }
 }
 
@@ -422,7 +445,7 @@ impl Dispatch<WlSurface, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WlSurface: {:?}", event);
+        dprintln!(state, "WlSurface: {:?}", event);
     }
 }
 
@@ -435,7 +458,7 @@ impl Dispatch<WlSeat, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WlSeat: {:?}", event);
+        dprintln!(state, "WlSeat: {:?}", event);
         match event {
             wl_seat::Event::Capabilities { capabilities } => match capabilities {
                 wayland_client::WEnum::Value(capabilities) => {
@@ -471,7 +494,7 @@ impl Dispatch<WlRegion, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WlRegion: {:?}", event);
+        dprintln!(state, "WlRegion: {:?}", event);
     }
 }
 
@@ -484,7 +507,7 @@ impl Dispatch<WpCursorShapeManagerV1, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WpCursorShapeManagerV1: {:?}", event);
+        dprintln!(state, "WpCursorShapeManagerV1: {:?}", event);
     }
 }
 
@@ -497,7 +520,7 @@ impl Dispatch<WpCursorShapeDeviceV1, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WpCursorShapeDeviceV1: {:?}", event);
+        dprintln!(state, "WpCursorShapeDeviceV1: {:?}", event);
     }
 }
 
@@ -510,7 +533,7 @@ impl Dispatch<WlCallback, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WlCallback: {:?}", event);
+        dprintln!(state, "WlCallback: {:?}", event);
         state.render();
     }
 }
@@ -524,7 +547,7 @@ impl Dispatch<WlKeyboard, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WlKeyboard: {:?}", event);
+        dprintln!(state, "WlKeyboard: {:?}", event);
         match event {
             wl_keyboard::Event::Key {
                 serial,
@@ -576,7 +599,7 @@ impl Dispatch<WlPointer, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        println!("WlPointer: {:?}", event);
+        dprintln!(state, "WlPointer: {:?}", event);
         match event {
             wl_pointer::Event::Enter {
                 serial,
