@@ -80,7 +80,9 @@ struct Cli {
 
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum DebugMode {
+    /// Skips WlCallback events
     Wayland,
+    WaylandAll,
     Socket,
     Other,
 }
@@ -103,6 +105,9 @@ fn main() {
     env_logger::init();
 
     let mut cli = Cli::parse();
+    if cli.debug.contains(&DebugMode::WaylandAll) {
+        cli.debug.push(DebugMode::Wayland);
+    }
     let stroke_color = cli
         .stroke_color
         .unwrap_or(csscolorparser::Color::from_rgba8(255, 0, 0, 255));
@@ -658,7 +663,7 @@ impl Dispatch<WlCallback, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "WlCallback: {:?}", event);
+        dprintln!(state, DebugMode::WaylandAll, "WlCallback: {:?}", event);
         state.render();
     }
 }
