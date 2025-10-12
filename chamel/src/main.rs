@@ -17,6 +17,7 @@ struct Cli {
 enum Command {
     Toggle,
     Clear,
+    ClearAndDeactivate,
     StrokeWidth { width: f32 },
     Exit,
 }
@@ -30,6 +31,7 @@ fn main() -> std::io::Result<()> {
     match cli.command {
         Command::Toggle => stream.write_all(b"toggle"),
         Command::Clear => stream.write_all(b"clear"),
+        Command::ClearAndDeactivate => stream.write_all(b"clear_and_deactivate"),
         Command::StrokeWidth { width } => {
             let s = format!("stroke_width {}", width);
             stream.write_all(s.as_bytes())

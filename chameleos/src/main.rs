@@ -169,6 +169,10 @@ fn main() {
             match split.next() {
                 Some(b"toggle") => state.toggle_input(&event_queue.handle()),
                 Some(b"clear") => state.clear(),
+                Some(b"clear_and_deactivate") => {
+                    state.clear();
+                    state.deactivate(&event_queue.handle());
+                }
                 Some(b"stroke_width") => {
                     match split
                         .next()
@@ -281,29 +285,42 @@ impl State {
         }
     }
 
-    fn toggle_input(&mut self, qhandle: &QueueHandle<Self>) {
+    fn activate(&mut self, qhandle: &QueueHandle<Self>) {
+        let compositor = self.compositor();
+        let surface = self.surface();
+        let layer_surface = self.layer_surface();
+        // reset to full region
+        dprintln!(self, DebugMode::Other, "activate");
+        surface.set_input_region(None);
+        layer_surface
+            .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::Exclusive);
+        surface.commit();
+
+        self.active = true;
+    }
+
+    fn deactivate(&mut self, qhandle: &QueueHandle<Self>) {
         let compositor = self.compositor();
         let surface = self.surface();
         let layer_surface = self.layer_surface();
 
+        dprintln!(self, DebugMode::Other, "deactivate");
+        let empty_region = compositor.create_region(qhandle, ());
+        surface.set_input_region(Some(&empty_region));
+        layer_surface
+            .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::None);
+        surface.commit();
+
+        self.active = false;
+    }
+
+    fn toggle_input(&mut self, qhandle: &QueueHandle<Self>) {
         if self.active {
             // make inactive
-            dprintln!(self, DebugMode::Other, "deactivate");
-            let empty_region = compositor.create_region(qhandle, ());
-            surface.set_input_region(Some(&empty_region));
-            layer_surface
-                .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::None);
+            self.deactivate(qhandle);
         } else {
-            // reset to full region
-            dprintln!(self, DebugMode::Other, "activate");
-            surface.set_input_region(None);
-            layer_surface.set_keyboard_interactivity(
-                zwlr_layer_surface_v1::KeyboardInteractivity::Exclusive,
-            );
+            self.activate(qhandle);
         }
-
-        surface.commit();
-        self.active = !self.active;
     }
 
     fn tessellate_current_line(&self) -> Option<Geometry> {
