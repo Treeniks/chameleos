@@ -168,6 +168,7 @@ fn main() {
 
             match split.next() {
                 Some(b"toggle") => state.toggle_input(&event_queue.handle()),
+                Some(b"undo") => state.undo(),
                 Some(b"clear") => state.clear(),
                 Some(b"clear_and_deactivate") => {
                     state.clear();
@@ -255,9 +256,12 @@ impl State {
         self.wpgu.as_ref().unwrap()
     }
 
+    fn undo(&mut self) {
+        self.tessellated_lines.pop();
+    }
+
     fn clear(&mut self) {
         self.tessellated_lines.clear();
-        self.render();
     }
 
     fn add_point_to_line(&mut self) {

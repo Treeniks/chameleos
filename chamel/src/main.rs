@@ -16,6 +16,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     Toggle,
+    Undo,
     Clear,
     ClearAndDeactivate,
     StrokeWidth { width: f32 },
@@ -30,6 +31,7 @@ fn main() -> std::io::Result<()> {
 
     match cli.command {
         Command::Toggle => stream.write_all(b"toggle"),
+        Command::Undo => stream.write_all(b"undo"),
         Command::Clear => stream.write_all(b"clear"),
         Command::ClearAndDeactivate => stream.write_all(b"clear_and_deactivate"),
         Command::StrokeWidth { width } => {
