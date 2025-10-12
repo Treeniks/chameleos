@@ -144,6 +144,8 @@ fn main() {
         width: 0,
         height: 0,
 
+        eraser: false,
+
         mouse_x: None,
         mouse_y: None,
         mouse_button_held: false,
@@ -171,6 +173,7 @@ fn main() {
         stroke_color: stroke_color,
         current_line: Vec::new(),
         tessellated_lines: Vec::new(),
+        tessellated_lines_source: Vec::new(),
     };
 
     loop {
@@ -233,6 +236,8 @@ struct State {
     width: usize,
     height: usize,
 
+    eraser: bool,
+
     // needs to be to know the mouse position on presses
     mouse_x: Option<f64>,
     mouse_y: Option<f64>,
@@ -260,6 +265,7 @@ struct State {
     stroke_color: csscolorparser::Color,
     current_line: Vec<(f32, f32)>,
     tessellated_lines: Vec<Geometry>,
+    tessellated_lines_source: Vec<lyon::path::Path>,
 }
 
 impl State {
@@ -308,6 +314,56 @@ impl State {
         self.current_line.clear();
     }
 
+    fn erase(&mut self) {
+        if let Some(mouse_x) = self.mouse_x
+            && let Some(mouse_y) = self.mouse_y
+        {
+            let x = mouse_x as f32;
+            let y = self.height as f32 - mouse_y as f32;
+
+            let p = lyon::math::point(x, y);
+
+            let eraser_size = self.stroke_width * 100.0;
+
+            let mut to_remove = None;
+
+            for (i, line) in self.tessellated_lines_source.iter().enumerate() {
+                // simple distance check from each point to our cursor
+                // we could also use lyon::math::hit_test
+                // but that has caused problems with short paths
+                for event in line {
+                    match event {
+                        lyon::path::Event::Begin { at } => {
+                            if (at - p).square_length() < eraser_size {
+                                to_remove = Some(i);
+                                break;
+                            }
+                        }
+                        lyon::path::Event::Line { from, to } => {
+                            if (to - p).square_length() < eraser_size {
+                                to_remove = Some(i);
+                                break;
+                            }
+                        }
+                        lyon::path::Event::Quadratic { from, ctrl, to } => todo!(),
+                        lyon::path::Event::Cubic {
+                            from,
+                            ctrl1,
+                            ctrl2,
+                            to,
+                        } => todo!(),
+                        lyon::path::Event::End { last, first, close } => {}
+                    }
+                }
+            }
+
+            if let Some(i) = to_remove {
+                self.tessellated_lines.remove(i);
+                self.tessellated_lines_source.remove(i);
+            }
+        }
+    }
+
     fn add_point_to_line(&mut self) {
         if let Some(mouse_x) = self.mouse_x
             && let Some(mouse_y) = self.mouse_y
@@ -328,8 +384,9 @@ impl State {
             // lines shouldn't get *too* long or it'll cause performance issues
             // also lyon has an upper limit at some point
             if self.current_line.len() > 0x800 {
-                self.tessellated_lines
-                    .push(self.tessellate_current_line().unwrap());
+                let (line, path) = self.tessellate_current_line().unwrap();
+                self.tessellated_lines.push(line);
+                self.tessellated_lines_source.push(path);
                 self.current_line.clear();
             }
         }
@@ -373,7 +430,7 @@ impl State {
         }
     }
 
-    fn tessellate_current_line(&self) -> Option<Geometry> {
+    fn tessellate_current_line(&self) -> Option<(Geometry, lyon::path::Path)> {
         use lyon::math::point;
         use lyon::path::Path;
         use lyon::tessellation::BuffersBuilder;
@@ -416,11 +473,11 @@ impl State {
             )
             .unwrap();
 
-        Some(Geometry::new(geometry))
+        Some((Geometry::new(geometry), path))
     }
 
     fn render(&self) {
-        if let Some(current_line_geometry) = self.tessellate_current_line() {
+        if let Some((current_line_geometry, _)) = self.tessellate_current_line() {
             self.wgpu().render(
                 self.tessellated_lines
                     .iter()
@@ -778,8 +835,9 @@ impl Dispatch<ZwpTabletToolV2, ()> for State {
             }
             zwp_tablet_tool_v2::Event::Up => {
                 state.mouse_button_held = false;
-                if let Some(tesselated_line) = state.tessellate_current_line() {
+                if let Some((tesselated_line, path)) = state.tessellate_current_line() {
                     state.tessellated_lines.push(tesselated_line);
+                    state.tessellated_lines_source.push(path);
                 }
                 state.current_line.clear();
             }
@@ -849,6 +907,10 @@ impl Dispatch<WlPointer, ()> for State {
                 if state.mouse_button_held {
                     state.add_point_to_line();
                 }
+
+                if state.eraser {
+                    state.erase();
+                }
             }
             wl_pointer::Event::Button {
                 serial,
@@ -862,8 +924,11 @@ impl Dispatch<WlPointer, ()> for State {
                         wayland_client::WEnum::Value(button_state) => match button_state {
                             wl_pointer::ButtonState::Released => {
                                 state.mouse_button_held = false;
-                                if let Some(tesselated_line) = state.tessellate_current_line() {
+                                if let Some((tesselated_line, path)) =
+                                    state.tessellate_current_line()
+                                {
                                     state.tessellated_lines.push(tesselated_line);
+                                    state.tessellated_lines_source.push(path);
                                 }
                                 state.current_line.clear();
                             }
@@ -871,6 +936,22 @@ impl Dispatch<WlPointer, ()> for State {
                                 state.mouse_button_held = true;
                                 debug_assert!(state.current_line.is_empty());
                                 state.add_point_to_line();
+                            }
+                            _ => {}
+                        },
+                        wayland_client::WEnum::Unknown(_) => {}
+                    }
+                }
+
+                // right mouse button
+                if button == 273 {
+                    match button_state {
+                        wayland_client::WEnum::Value(button_state) => match button_state {
+                            wl_pointer::ButtonState::Released => {
+                                state.eraser = false;
+                            }
+                            wl_pointer::ButtonState::Pressed => {
+                                state.eraser = true;
                             }
                             _ => {}
                         },
