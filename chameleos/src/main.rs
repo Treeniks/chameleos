@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use std::io::Read;
+
 mod shader;
 use shader::*;
 
@@ -50,10 +52,14 @@ use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::ZwlrLay
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1;
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::ZwlrLayerSurfaceV1;
 
+use interprocess::local_socket::GenericNamespaced;
+use interprocess::local_socket::ListenerOptions;
+use interprocess::local_socket::prelude::*;
+
 const EPSILON: f32 = 5.0;
 const SAMPLE_COUNT: u32 = 4;
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
 #[derive(Parser)]
 struct Cli {
@@ -75,9 +81,25 @@ fn main() {
 
     let cli = Cli::parse();
 
-    let sigusr1 = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGUSR1, sigusr1.clone()).unwrap();
+    // setup socket for messages
+    let socket_name = "chameleos.sock".to_ns_name::<GenericNamespaced>().unwrap();
+    let socket_opts = ListenerOptions::new()
+        .name(socket_name)
+        .nonblocking(interprocess::local_socket::ListenerNonblockingMode::Accept);
+    let listener = match socket_opts.create_sync() {
+        Ok(l) => l,
+        Err(e) => match e.kind() {
+            std::io::ErrorKind::AddrInUse => {
+                panic!("Socket occuppied, maybe chameleos is already running?");
+            }
+            _ => {
+                panic!("{}", e);
+            }
+        },
+    };
+    let mut listener_buffer: Vec<u8> = Vec::with_capacity(128);
 
+    // setup wayland client
     let connection = wayland_client::Connection::connect_to_env().unwrap();
     let mut event_queue: wayland_client::EventQueue<State> = connection.new_event_queue();
 
@@ -118,15 +140,28 @@ fn main() {
     loop {
         event_queue.blocking_dispatch(&mut state).unwrap();
 
-        if sigusr1.load(std::sync::atomic::Ordering::Relaxed) {
-            sigusr1.store(false, std::sync::atomic::Ordering::Relaxed);
-            state.toggle_input(&event_queue.handle());
-        }
-
         // request new frame
         // needed so the application doesn't die when disabling interactivity
         state.surface().frame(&event_queue.handle(), ());
         state.surface().commit();
+
+        if let Ok(mut stream) = listener.accept() {
+            stream.read_to_end(&mut listener_buffer);
+            dprintln!(
+                state,
+                "received message: {}",
+                String::from_utf8_lossy(&listener_buffer)
+            );
+
+            match listener_buffer.as_slice() {
+                b"toggle" => {
+                    state.toggle_input(&event_queue.handle());
+                }
+                _ => {}
+            }
+
+            listener_buffer.clear();
+        }
     }
 
     // TODO maybe should do some better cleanup?
