@@ -26,8 +26,17 @@ enum Command {
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
-    let socket_name = "chameleos.sock".to_ns_name::<GenericNamespaced>().unwrap();
-    let mut stream = Stream::connect(socket_name).unwrap();
+    let socket_name = "chameleos.sock".to_ns_name::<GenericNamespaced>()?;
+    let mut stream = match Stream::connect(socket_name) {
+        Ok(stream) => stream,
+        Err(e) => match e.kind() {
+            std::io::ErrorKind::ConnectionRefused => {
+                eprintln!("Connection Refused, is chameleos running?");
+                return Err(e);
+            }
+            _ => return Err(e),
+        },
+    };
 
     match cli.command {
         Command::Toggle => stream.write_all(b"toggle"),
