@@ -157,6 +157,7 @@ fn main() {
                 b"toggle" => {
                     state.toggle_input(&event_queue.handle());
                 }
+                b"exit" => break,
                 _ => {}
             }
 

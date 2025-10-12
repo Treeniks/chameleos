@@ -16,6 +16,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     Toggle,
+    Exit,
 }
 
 fn main() {
@@ -26,5 +27,6 @@ fn main() {
 
     match cli.command {
         Command::Toggle => stream.write_all(b"toggle").unwrap(),
+        Command::Exit => stream.write_all(b"exit").unwrap(),
     }
 }
