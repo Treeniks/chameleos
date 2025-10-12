@@ -436,7 +436,6 @@ impl Dispatch<WlRegistry, ()> for State {
                     );
                     layer_surface.set_exclusive_zone(-1);
                     surface.set_input_region(None);
-                    surface.commit();
 
                     state.layer_shell = Some(layer_shell);
                     state.layer_surface = Some(layer_surface);
