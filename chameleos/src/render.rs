@@ -52,7 +52,13 @@ pub struct Wgpu {
 }
 
 impl Wgpu {
-    pub fn new(display: &WlDisplay, surface: &WlSurface, width: u32, height: u32) -> Self {
+    pub fn new(
+        display: &WlDisplay,
+        surface: &WlSurface,
+        width: u32,
+        height: u32,
+        stroke_color: &csscolorparser::Color,
+    ) -> Self {
         let wgpu_instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
@@ -148,21 +154,23 @@ impl Wgpu {
 
         // =====
 
-        let screen = Screen {
-            size: [width as f32, height as f32],
+        let uniform = Uniform {
+            stroke_color: stroke_color.to_linear_rgba(),
+            screen_size: [width as f32, height as f32],
+            _fill: [0.0, 0.0],
         };
-        let screen_buffer = wgpu_device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let uniform_buffer = wgpu_device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::bytes_of(&screen),
+            contents: bytemuck::bytes_of(&uniform),
             usage: wgpu::BufferUsages::UNIFORM,
         });
 
-        let screen_bind_group_layout =
+        let uniform_bind_group_layout =
             wgpu_device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: None,
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -171,12 +179,12 @@ impl Wgpu {
                     count: None,
                 }],
             });
-        let screen_bind_group = wgpu_device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let uniform_bind_group = wgpu_device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
-            layout: &screen_bind_group_layout,
+            layout: &uniform_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: screen_buffer.as_entire_binding(),
+                resource: uniform_buffer.as_entire_binding(),
             }],
         });
 
@@ -184,7 +192,7 @@ impl Wgpu {
         let render_pipeline_layout =
             wgpu_device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
-                bind_group_layouts: &[&screen_bind_group_layout],
+                bind_group_layouts: &[&uniform_bind_group_layout],
                 push_constant_ranges: &[],
             });
         let render_pipeline = wgpu_device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -257,8 +265,8 @@ impl Wgpu {
             vertex_buffer,
             index_buffer,
 
-            screen_buffer,
-            screen_bind_group,
+            screen_buffer: uniform_buffer,
+            screen_bind_group: uniform_bind_group,
         }
     }
 

@@ -1,7 +1,10 @@
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Screen {
-    pub size: [f32; 2],
+pub struct Uniform {
+    pub stroke_color: [f32; 4],
+    pub screen_size: [f32; 2],
+    // unused
+    pub _fill: [f32; 2],
 }
 
 #[repr(C)]

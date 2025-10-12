@@ -62,8 +62,11 @@ struct Cli {
     #[arg(short, long)]
     debug: Vec<DebugMode>,
 
-    #[arg(short, long, default_value_t = 8.0)]
+    #[arg(short = 'w', long, default_value_t = 8.0)]
     stroke_width: f32,
+
+    #[arg(short = 'c', long, value_parser = csscolorparser::parse, default_value_t = csscolorparser::Color::from_rgba8(255, 0, 0, 255))]
+    stroke_color: csscolorparser::Color,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -143,6 +146,7 @@ fn main() {
         wpgu: None,
 
         stroke_width: cli.stroke_width,
+        stroke_color: cli.stroke_color,
         current_line: Vec::new(),
         tessellated_lines: Vec::new(),
     };
@@ -227,6 +231,7 @@ struct State {
     wpgu: Option<Wgpu>,
 
     stroke_width: f32,
+    stroke_color: csscolorparser::Color,
     current_line: Vec<(f32, f32)>,
     tessellated_lines: Vec<Geometry>,
 }
@@ -480,7 +485,13 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 let surface = state.surface();
 
                 if state.wpgu.is_none() {
-                    state.wpgu = Some(Wgpu::new(&state.display, surface, width, height));
+                    state.wpgu = Some(Wgpu::new(
+                        &state.display,
+                        surface,
+                        width,
+                        height,
+                        &state.stroke_color,
+                    ));
                 }
 
                 state.layer_surface().ack_configure(serial);
