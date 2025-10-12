@@ -831,7 +831,11 @@ impl Dispatch<ZwpTabletToolV2, ()> for State {
             zwp_tablet_tool_v2::Event::Down { serial } => {
                 state.mouse_button_held = true;
                 debug_assert!(state.current_line.is_empty());
-                state.add_point_to_line();
+                if state.eraser {
+                    state.erase();
+                } else {
+                    state.add_point_to_line();
+                }
             }
             zwp_tablet_tool_v2::Event::Up => {
                 state.mouse_button_held = false;
@@ -846,7 +850,11 @@ impl Dispatch<ZwpTabletToolV2, ()> for State {
                 state.mouse_y = Some(y);
 
                 if state.mouse_button_held {
-                    state.add_point_to_line();
+                    if state.eraser {
+                        state.erase();
+                    } else {
+                        state.add_point_to_line();
+                    }
                 }
             }
             zwp_tablet_tool_v2::Event::Pressure { pressure } => {}
@@ -858,8 +866,23 @@ impl Dispatch<ZwpTabletToolV2, ()> for State {
             zwp_tablet_tool_v2::Event::Button {
                 serial,
                 button,
-                state,
-            } => {}
+                state: button_state,
+            } => {
+                if button == 331 {
+                    match button_state {
+                        wayland_client::WEnum::Value(button_state) => match button_state {
+                            zwp_tablet_tool_v2::ButtonState::Released => {
+                                state.eraser = false;
+                            }
+                            zwp_tablet_tool_v2::ButtonState::Pressed => {
+                                state.eraser = true;
+                            }
+                            _ => {}
+                        },
+                        wayland_client::WEnum::Unknown(_) => {}
+                    }
+                }
+            }
             zwp_tablet_tool_v2::Event::Frame { time } => {
                 // TODO same as pointer, logic should be handled here instead
             }
