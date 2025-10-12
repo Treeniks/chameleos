@@ -65,6 +65,9 @@ struct Cli {
     /// Turn on debug printing
     #[arg(long)]
     debug: bool,
+
+    #[arg(short, long, default_value_t = 8.0)]
+    stroke_width: f32,
 }
 
 macro_rules! dprintln {
@@ -132,6 +135,7 @@ fn main() {
 
         wpgu: None,
 
+        stroke_width: cli.stroke_width,
         current_line: Vec::new(),
         tessellated_lines: Vec::new(),
     };
@@ -195,6 +199,7 @@ struct State {
 
     wpgu: Option<Wgpu>,
 
+    stroke_width: f32,
     current_line: Vec<(f32, f32)>,
     tessellated_lines: Vec<Geometry>,
 }
@@ -317,7 +322,7 @@ impl State {
 
         let mut tessellator = StrokeTessellator::new();
         let stroke_options = StrokeOptions::default()
-            .with_line_width(16.0)
+            .with_line_width(self.stroke_width)
             .with_line_cap(lyon::path::LineCap::Round)
             .with_line_join(lyon::path::LineJoin::Round);
 
