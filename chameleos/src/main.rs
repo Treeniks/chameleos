@@ -8,8 +8,6 @@ use shader::*;
 mod render;
 use render::*;
 
-use xkbcommon::xkb;
-
 use wayland_client::Connection;
 use wayland_client::Dispatch;
 use wayland_client::Proxy;
@@ -23,9 +21,6 @@ use wayland_client::protocol::wl_compositor::WlCompositor;
 
 use wayland_client::protocol::wl_surface;
 use wayland_client::protocol::wl_surface::WlSurface;
-
-use wayland_client::protocol::wl_keyboard;
-use wayland_client::protocol::wl_keyboard::WlKeyboard;
 
 use wayland_client::protocol::wl_pointer;
 use wayland_client::protocol::wl_pointer::WlPointer;
@@ -141,8 +136,6 @@ fn main() {
         layer_shell: None,
         layer_surface: None,
 
-        keyboard: None,
-        xkb_state: None,
         pointer: None,
         cursor_shape_manager: None,
         cursor_shape_device: None,
@@ -220,8 +213,6 @@ struct State {
     layer_shell: Option<ZwlrLayerShellV1>,
     layer_surface: Option<ZwlrLayerSurfaceV1>,
 
-    keyboard: Option<WlKeyboard>,
-    xkb_state: Option<xkb::State>,
     pointer: Option<WlPointer>,
     cursor_shape_manager: Option<WpCursorShapeManagerV1>,
     cursor_shape_device: Option<WpCursorShapeDeviceV1>,
@@ -244,13 +235,6 @@ impl State {
 
     fn layer_surface(&self) -> &ZwlrLayerSurfaceV1 {
         self.layer_surface.as_ref().unwrap()
-    }
-
-    fn xkb_state(&self) -> &xkb::State {
-        self.xkb_state.as_ref().unwrap()
-    }
-    fn xkb_state_mut(&mut self) -> &mut xkb::State {
-        self.xkb_state.as_mut().unwrap()
     }
 
     fn cursor_shape_manager(&mut self) -> &WpCursorShapeManagerV1 {
@@ -531,11 +515,6 @@ impl Dispatch<WlSeat, ()> for State {
         match event {
             wl_seat::Event::Capabilities { capabilities } => match capabilities {
                 wayland_client::WEnum::Value(capabilities) => {
-                    if capabilities.contains(wl_seat::Capability::Keyboard) {
-                        let keyboard = seat.get_keyboard(qhandle, *data);
-                        state.keyboard = Some(keyboard);
-                    }
-
                     if capabilities.contains(wl_seat::Capability::Pointer) {
                         let pointer = seat.get_pointer(qhandle, *data);
 
@@ -604,58 +583,6 @@ impl Dispatch<WlCallback, ()> for State {
     ) {
         wdprintln!(state, "WlCallback: {:?}", event);
         state.render();
-    }
-}
-
-impl Dispatch<WlKeyboard, ()> for State {
-    fn event(
-        state: &mut Self,
-        keyboard: &WlKeyboard,
-        event: <WlKeyboard as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &QueueHandle<Self>,
-    ) {
-        wdprintln!(state, "WlKeyboard: {:?}", event);
-        match event {
-            wl_keyboard::Event::Key {
-                serial,
-                time,
-                key,
-                state: key_state,
-            } => {
-                let xkb_state = state.xkb_state_mut();
-
-                // TODO update xkb_state
-
-                // +8 because of conversion from Wayland to X11 keycodes
-                // because X11 reserves the first 8 keycodes
-                let key_code = xkb::Keycode::new(key + 8);
-                let sym = xkb_state.key_get_one_sym(key_code);
-
-                if sym == xkb::Keysym::c {
-                    state.clear();
-                }
-            }
-            wl_keyboard::Event::Keymap { format, fd, size } => match format {
-                wayland_client::WEnum::Value(format) => {
-                    let keymap = unsafe {
-                        xkb::Keymap::new_from_fd(
-                            &xkb::Context::new(xkb::CONTEXT_NO_FLAGS),
-                            fd,
-                            size as usize,
-                            format as u32,
-                            xkb::KEYMAP_COMPILE_NO_FLAGS,
-                        )
-                        .unwrap()
-                        .unwrap()
-                    };
-                    state.xkb_state = Some(xkb::State::new(&keymap));
-                }
-                wayland_client::WEnum::Unknown(_) => {}
-            },
-            _ => {}
-        }
     }
 }
 
