@@ -65,8 +65,8 @@ struct Cli {
     #[arg(short = 'w', long, default_value_t = 8.0)]
     stroke_width: f32,
 
-    #[arg(short = 'c', long, value_parser = csscolorparser::parse, default_value_t = csscolorparser::Color::from_rgba8(255, 0, 0, 255))]
-    stroke_color: csscolorparser::Color,
+    #[arg(short = 'c', long, value_parser = csscolorparser::parse)]
+    stroke_color: Option<csscolorparser::Color>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -93,7 +93,10 @@ macro_rules! wdprintln {
 fn main() {
     env_logger::init();
 
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    let stroke_color = cli
+        .stroke_color
+        .unwrap_or(csscolorparser::Color::from_rgba8(255, 0, 0, 255));
 
     // setup socket for messages
     let socket_name = "chameleos.sock".to_ns_name::<GenericNamespaced>().unwrap();
@@ -146,7 +149,7 @@ fn main() {
         wpgu: None,
 
         stroke_width: cli.stroke_width,
-        stroke_color: cli.stroke_color,
+        stroke_color: stroke_color,
         current_line: Vec::new(),
         tessellated_lines: Vec::new(),
     };
