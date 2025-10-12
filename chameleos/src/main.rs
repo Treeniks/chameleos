@@ -140,7 +140,7 @@ fn main() {
     let mut state = State {
         debug: cli.debug,
 
-        active: true,
+        active: false,
         width: 0,
         height: 0,
 
@@ -398,11 +398,10 @@ impl State {
         let compositor = self.compositor();
         let surface = self.surface();
         let layer_surface = self.layer_surface();
+
         // reset to full region
         dprintln!(self, DebugMode::Other, "activate");
         surface.set_input_region(None);
-        layer_surface
-            .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::Exclusive);
         surface.commit();
 
         self.active = true;
@@ -416,8 +415,6 @@ impl State {
         dprintln!(self, DebugMode::Other, "deactivate");
         let empty_region = compositor.create_region(qhandle, ());
         surface.set_input_region(Some(&empty_region));
-        layer_surface
-            .set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::None);
         surface.commit();
 
         self.active = false;
@@ -545,13 +542,14 @@ impl Dispatch<WlRegistry, ()> for State {
 
                     layer_surface.set_anchor(zwlr_layer_surface_v1::Anchor::all());
                     layer_surface.set_keyboard_interactivity(
-                        zwlr_layer_surface_v1::KeyboardInteractivity::Exclusive,
+                        zwlr_layer_surface_v1::KeyboardInteractivity::None,
                     );
                     layer_surface.set_exclusive_zone(-1);
-                    surface.set_input_region(None);
 
                     state.layer_shell = Some(layer_shell);
                     state.layer_surface = Some(layer_surface);
+
+                    state.deactivate(qhandle);
                 }
                 _ => {}
             },
