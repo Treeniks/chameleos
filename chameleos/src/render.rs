@@ -1,4 +1,3 @@
-use crate::SAMPLE_COUNT;
 use crate::shader::*;
 
 use lyon::tessellation::VertexBuffers;
@@ -8,6 +7,8 @@ use wayland_client::protocol::wl_display::WlDisplay;
 use wayland_client::protocol::wl_surface::WlSurface;
 
 use wgpu::util::DeviceExt;
+
+const SAMPLE_COUNT: u32 = 4;
 
 #[derive(Debug, Clone)]
 pub struct Geometry {

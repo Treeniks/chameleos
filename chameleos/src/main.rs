@@ -57,7 +57,6 @@ use interprocess::local_socket::ListenerOptions;
 use interprocess::local_socket::prelude::*;
 
 const EPSILON: f32 = 5.0;
-const SAMPLE_COUNT: u32 = 4;
 
 use clap::Parser;
 
