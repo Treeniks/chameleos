@@ -171,6 +171,7 @@ name = "chamel"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "csscolorparser",
  "interprocess",
 ]
 

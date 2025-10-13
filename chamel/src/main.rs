@@ -20,6 +20,7 @@ enum Command {
     Clear,
     ClearAndDeactivate,
     StrokeWidth { width: f32 },
+    StrokeColor { color: csscolorparser::Color },
     Exit,
 }
 
@@ -45,6 +46,10 @@ fn main() -> std::io::Result<()> {
         Command::ClearAndDeactivate => stream.write_all(b"clear_and_deactivate"),
         Command::StrokeWidth { width } => {
             let s = format!("stroke_width {}", width);
+            stream.write_all(s.as_bytes())
+        }
+        Command::StrokeColor { color } => {
+            let s = format!("stroke_color {}", color.to_css_hex());
             stream.write_all(s.as_bytes())
         }
         Command::Exit => stream.write_all(b"exit"),

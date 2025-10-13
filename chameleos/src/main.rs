@@ -74,7 +74,7 @@ struct Cli {
     #[arg(short = 'w', long, default_value_t = 8.0)]
     stroke_width: f32,
 
-    #[arg(short = 'c', long, value_parser = csscolorparser::parse)]
+    #[arg(short = 'c', long)]
     stroke_color: Option<csscolorparser::Color>,
 }
 
@@ -215,6 +215,18 @@ fn main() {
                         }
                     }
                 }
+                Some(b"stroke_color") => {
+                    match split
+                        .next()
+                        .and_then(|color_text| String::from_utf8(color_text.to_vec()).ok())
+                        .and_then(|color_text| csscolorparser::parse(&color_text).ok())
+                    {
+                        Some(color) => state.stroke_color = color,
+                        None => {
+                            eprintln!("received stroke color message but couldn't parse a color")
+                        }
+                    }
+                }
                 Some(b"exit") => break,
                 Some(message) => eprintln!("unknown message: {}", String::from_utf8_lossy(message)),
                 None => eprintln!("received empty message"),
@@ -325,7 +337,7 @@ impl State {
 
             let p = lyon::math::point(x, y);
 
-            let eraser_size = self.stroke_width * 100.0;
+            let eraser_size = self.stroke_width * 10.0;
 
             let mut to_remove = None;
 
@@ -466,8 +478,8 @@ impl State {
             .tessellate_path(
                 &path,
                 &stroke_options,
-                &mut BuffersBuilder::new(&mut geometry, |vertex: StrokeVertex| Vertex {
-                    position: vertex.position().to_array(),
+                &mut BuffersBuilder::new(&mut geometry, |vertex: StrokeVertex| {
+                    Vertex::new(vertex, &self.stroke_color)
                 }),
             )
             .unwrap();

@@ -35,9 +35,15 @@ To see a list of commands, run `chamel help`.
 
 ### Stroke Color and Width
 
-The stroke width can be set on startup with `chameleos --stroke-width 16` (default is 8) as well as on the fly with `chamel stroke-wdith 16`.
+The stroke width can be set
+- on startup with `chameleos --stroke-width 16` (default is 8)
+- on the fly with `chamel stroke-width 16`
 
-The stroke color can **only** be set on startup with `chameleos --stroke-color "#00BFFF"` (default is `#FF0000`). Changing the stroke color on the fly is currently not supported. The color can be given in whatever formats the [csscolorparser](https://crates.io/crates/csscolorparser) crate supports. The color can also include opacity, although due to a technical limitation, `chameleos` uses `wgpu::CompositeAlphaMode::PreMultiplied` which makes opacity behave a bit weird.
+The stroke color can be set
+- on startup with `chameleos --stroke-color "#00BFFF"` (default is `#FF0000`)
+- on the fly with `chamel stroke-color "#00BFFF"`
+
+The color can be given in whatever formats the [csscolorparser](https://crates.io/crates/csscolorparser) crate supports. The color can also include opacity, although due to a technical limitation, `chameleos` uses `wgpu::CompositeAlphaMode::PreMultiplied` which makes opacity behave a bit weird.
 
 ### Eraser
 

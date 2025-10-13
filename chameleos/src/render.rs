@@ -155,9 +155,7 @@ impl Wgpu {
         // =====
 
         let uniform = Uniform {
-            stroke_color: stroke_color.to_linear_rgba(),
             screen_size: [width as f32, height as f32],
-            _fill: [0.0, 0.0],
         };
         let uniform_buffer = wgpu_device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
@@ -202,7 +200,7 @@ impl Wgpu {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex::DESC],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
