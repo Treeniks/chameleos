@@ -876,6 +876,9 @@ impl Dispatch<ZwpTabletToolV2, ()> for State {
                             }
                             zwp_tablet_tool_v2::ButtonState::Pressed => {
                                 state.eraser = true;
+                                if state.mouse_button_held {
+                                    state.erase();
+                                }
                             }
                             _ => {}
                         },
@@ -975,6 +978,7 @@ impl Dispatch<WlPointer, ()> for State {
                             }
                             wl_pointer::ButtonState::Pressed => {
                                 state.eraser = true;
+                                state.erase();
                             }
                             _ => {}
                         },
