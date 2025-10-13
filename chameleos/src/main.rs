@@ -587,6 +587,8 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 width,
                 height,
             } => {
+                state.layer_surface().ack_configure(serial);
+
                 state.width = width as usize;
                 state.height = height as usize;
 
@@ -602,7 +604,8 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                     ));
                 }
 
-                state.layer_surface().ack_configure(serial);
+                // need to render or else Hyprland spams us with configure events
+                state.render();
             }
             zwlr_layer_surface_v1::Event::Closed => {}
             _ => {}
