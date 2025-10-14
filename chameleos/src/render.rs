@@ -104,32 +104,40 @@ impl Wgpu {
             }))
             .unwrap();
 
-        let wgpu_surface_caps = wgpu_surface.get_capabilities(&wgpu_adapter);
-        let wgpu_surface_format = wgpu_surface_caps
+        let surface_caps = wgpu_surface.get_capabilities(&wgpu_adapter);
+        let format = surface_caps
             .formats
             .iter()
             .find(|f| f.is_srgb())
             .copied()
-            .unwrap_or(wgpu_surface_caps.formats[0]);
+            .unwrap_or(surface_caps.formats[0]);
+
         // only PreMultiplied for now
-        let wgpu_alpha_mode = wgpu_surface_caps
+        let alpha_mode = surface_caps
             .alpha_modes
             .iter()
             .find(|a| matches!(a, wgpu::CompositeAlphaMode::PreMultiplied))
             .copied()
             .unwrap();
 
+        let present_mode = surface_caps
+            .present_modes
+            .iter()
+            .find(|a| matches!(a, wgpu::PresentMode::Mailbox))
+            .copied()
+            .unwrap_or(wgpu::PresentMode::Fifo);
+
         // https://docs.rs/wgpu/latest/wgpu/struct.SurfaceCapabilities.html
         let wgpu_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: wgpu_surface_format,
+            format,
             width,
             height,
             // docs say this one is guaranteed to work
             // and the others look all weird from testing
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode,
             desired_maximum_frame_latency: 2,
-            alpha_mode: wgpu_alpha_mode,
+            alpha_mode,
             view_formats: vec![],
         };
 
