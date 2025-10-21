@@ -55,6 +55,10 @@ pub struct Wgpu {
 }
 
 impl Wgpu {
+    pub fn surface_config(&self) -> &wgpu::SurfaceConfiguration {
+        &self.surface_config
+    }
+
     pub fn new(
         display: &WlDisplay,
         surface: &WlSurface,

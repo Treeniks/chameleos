@@ -43,7 +43,7 @@ The stroke color can be set
 - on startup with `chameleos --stroke-color "#00BFFF"` (default is `#FF0000`)
 - on the fly with `chamel stroke-color "#00BFFF"`
 
-The color can be given in whatever formats the [csscolorparser](https://crates.io/crates/csscolorparser) crate supports. The color can also include opacity, although due to a technical limitation, `chameleos` uses `wgpu::CompositeAlphaMode::PreMultiplied` which makes opacity behave a bit weird.
+The color can be given in whatever formats the [csscolorparser](https://crates.io/crates/csscolorparser) crate supports. The color can also include opacity.
 
 ### Eraser
 

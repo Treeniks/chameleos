@@ -152,6 +152,7 @@ fn main() {
 
         stroke_width: cli.stroke_width,
         stroke_color: stroke_color,
+        color_needs_pre_multiply: false,
         current_line: Vec::new(),
         tessellated_lines: Vec::new(),
         tessellated_lines_source: Vec::new(),
@@ -203,7 +204,12 @@ fn main() {
                         .and_then(|color_text| String::from_utf8(color_text.to_vec()).ok())
                         .and_then(|color_text| csscolorparser::parse(&color_text).ok())
                     {
-                        Some(color) => state.stroke_color = color,
+                        Some(color) => {
+                            state.stroke_color = color;
+                            if state.color_needs_pre_multiply {
+                                state.pre_multiply_stroke_color();
+                            }
+                        }
                         None => {
                             eprintln!("received stroke color message but couldn't parse a color")
                         }
@@ -255,6 +261,7 @@ struct State {
 
     stroke_width: f32,
     stroke_color: csscolorparser::Color,
+    color_needs_pre_multiply: bool,
     current_line: Vec<(f32, f32)>,
     tessellated_lines: Vec<Geometry>,
     tessellated_lines_source: Vec<lyon::path::Path>,
@@ -291,6 +298,12 @@ impl State {
 
     fn wgpu(&self) -> &Wgpu {
         self.wgpu.as_ref().unwrap()
+    }
+
+    fn pre_multiply_stroke_color(&mut self) {
+        self.stroke_color.r *= self.stroke_color.a;
+        self.stroke_color.g *= self.stroke_color.a;
+        self.stroke_color.b *= self.stroke_color.a;
     }
 
     fn undo(&mut self) {
@@ -577,13 +590,15 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 let surface = state.surface();
 
                 if state.wgpu.is_none() {
-                    state.wgpu = Some(Wgpu::new(
-                        &state.display,
-                        surface,
-                        width,
-                        height,
-                        &state.stroke_color,
-                    ));
+                    let wgpu =
+                        Wgpu::new(&state.display, surface, width, height, &state.stroke_color);
+
+                    if wgpu.surface_config().alpha_mode == wgpu::CompositeAlphaMode::PreMultiplied {
+                        state.pre_multiply_stroke_color();
+                        state.color_needs_pre_multiply = true;
+                    }
+
+                    state.wgpu = Some(wgpu);
                 }
 
                 // need to render or else Hyprland spams us with configure events
