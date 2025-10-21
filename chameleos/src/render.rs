@@ -91,7 +91,11 @@ impl Wgpu {
             }))
             .unwrap();
 
-        println!("GPU selected: {}", wgpu_adapter.get_info().name);
+        let info = wgpu_adapter.get_info();
+        println!("GPU: {}", info.name);
+        println!("Device Type: {:?}", info.device_type);
+        println!("Driver: {} {}", info.driver, info.driver_info);
+        println!("Backend: {}", info.backend);
 
         let (wgpu_device, wgpu_queue) =
             pollster::block_on(wgpu_adapter.request_device(&wgpu::DeviceDescriptor {
@@ -105,27 +109,32 @@ impl Wgpu {
             .unwrap();
 
         let surface_caps = wgpu_surface.get_capabilities(&wgpu_adapter);
+
         let format = surface_caps
             .formats
             .iter()
-            .find(|f| f.is_srgb())
+            .find(|format| format.is_srgb())
             .copied()
             .unwrap_or(surface_caps.formats[0]);
+
+        let present_mode = surface_caps
+            .present_modes
+            .iter()
+            .find(|present_mode| matches!(present_mode, wgpu::PresentMode::Mailbox))
+            .copied()
+            // docs say this one is guaranteed to work
+            .unwrap_or(wgpu::PresentMode::Fifo);
 
         // only PreMultiplied for now
         let alpha_mode = surface_caps
             .alpha_modes
             .iter()
-            .find(|a| matches!(a, wgpu::CompositeAlphaMode::PreMultiplied))
+            .find(|alpha_mode| matches!(alpha_mode, wgpu::CompositeAlphaMode::PreMultiplied))
             .copied()
-            .unwrap();
-
-        let present_mode = surface_caps
-            .present_modes
-            .iter()
-            .find(|a| matches!(a, wgpu::PresentMode::Mailbox))
-            .copied()
-            .unwrap_or(wgpu::PresentMode::Fifo);
+            // TODO This will often fall back to Opaque which *should* show nothing but a black
+            // screen. Except for some reason sometimes it also just works with Opaque (looking at
+            // you Intel iGPU). No idea why.
+            .unwrap_or(wgpu::CompositeAlphaMode::Auto);
 
         // https://docs.rs/wgpu/latest/wgpu/struct.SurfaceCapabilities.html
         let wgpu_config = wgpu::SurfaceConfiguration {
@@ -133,8 +142,6 @@ impl Wgpu {
             format,
             width,
             height,
-            // docs say this one is guaranteed to work
-            // and the others look all weird from testing
             present_mode,
             desired_maximum_frame_latency: 2,
             alpha_mode,
