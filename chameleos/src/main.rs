@@ -9,6 +9,9 @@ use shader::*;
 mod render;
 use render::*;
 
+use log::Level;
+use log::log;
+
 use wayland_backend::client::ObjectId;
 use wayland_client::Connection;
 use wayland_client::Dispatch;
@@ -67,10 +70,6 @@ use clap::ValueEnum;
 
 #[derive(Parser)]
 struct Cli {
-    /// Turn on debug printing
-    #[arg(short, long)]
-    debug: Vec<DebugMode>,
-
     #[arg(short = 'w', long, default_value_t = 8.0)]
     stroke_width: f32,
 
@@ -87,27 +86,11 @@ enum DebugMode {
     Other,
 }
 
-macro_rules! dprintln {
-    ($state:expr, $mode:expr, $($arg:tt)*) => {
-        if $state.debug.contains(&$mode) {
-            println!($($arg)*);
-        }
-    };
-}
-
-macro_rules! wdprintln {
-    ($state:expr, $($arg:tt)*) => {
-        dprintln!($state, DebugMode::Wayland, $($arg)*)
-    };
-}
-
 fn main() {
     env_logger::init();
 
     let mut cli = Cli::parse();
-    if cli.debug.contains(&DebugMode::WaylandAll) {
-        cli.debug.push(DebugMode::Wayland);
-    }
+
     let stroke_color = cli
         .stroke_color
         .unwrap_or(csscolorparser::Color::from_rgba8(255, 0, 0, 255));
@@ -138,8 +121,6 @@ fn main() {
     let _registry = display.get_registry(&event_queue.handle(), ());
 
     let mut state = State {
-        debug: cli.debug,
-
         active: false,
         width: 0,
         height: 0,
@@ -186,9 +167,10 @@ fn main() {
 
         if let Ok(mut stream) = listener.accept() {
             stream.read_to_end(&mut listener_buffer);
-            dprintln!(
-                state,
-                DebugMode::Socket,
+
+            log!(
+                target: "chameleos::socket",
+                Level::Info,
                 "received message: {}",
                 String::from_utf8_lossy(&listener_buffer)
             );
@@ -242,8 +224,6 @@ fn main() {
 }
 
 struct State {
-    debug: Vec<DebugMode>,
-
     active: bool,
     width: usize,
     height: usize,
@@ -412,7 +392,7 @@ impl State {
         let layer_surface = self.layer_surface();
 
         // reset to full region
-        dprintln!(self, DebugMode::Other, "activate");
+        log!(target: "chameleos::general", Level::Info, "activate");
         surface.set_input_region(None);
         surface.commit();
 
@@ -424,7 +404,7 @@ impl State {
         let surface = self.surface();
         let layer_surface = self.layer_surface();
 
-        dprintln!(self, DebugMode::Other, "deactivate");
+        log!(target: "chameleos::general", Level::Info, "deactivate");
         let empty_region = compositor.create_region(qhandle, ());
         surface.set_input_region(Some(&empty_region));
         surface.commit();
@@ -509,7 +489,8 @@ impl Dispatch<WlRegistry, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "WlRegistry: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "WlRegistry: {:?}", event);
+
         match event {
             wl_registry::Event::Global {
                 name,
@@ -580,7 +561,8 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "LayerSurface: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "LayerSurface: {:?}", event);
+
         match event {
             zwlr_layer_surface_v1::Event::Configure {
                 serial,
@@ -622,7 +604,7 @@ impl Dispatch<ZwlrLayerShellV1, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "LayerShell: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "LayerShell: {:?}", event);
     }
 }
 
@@ -635,7 +617,7 @@ impl Dispatch<WlCompositor, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "WlCompositor: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "WlCompositor: {:?}", event);
     }
 }
 
@@ -648,7 +630,7 @@ impl Dispatch<WlSurface, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "WlSurface: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "WlSurface: {:?}", event);
     }
 }
 
@@ -661,7 +643,8 @@ impl Dispatch<WlSeat, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "WlSeat: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "WlSeat: {:?}", event);
+
         match event {
             wl_seat::Event::Capabilities { capabilities } => match capabilities {
                 wayland_client::WEnum::Value(capabilities) => {
@@ -696,7 +679,7 @@ impl Dispatch<WlRegion, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "WlRegion: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "WlRegion: {:?}", event);
     }
 }
 
@@ -709,7 +692,7 @@ impl Dispatch<WpCursorShapeManagerV1, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "WpCursorShapeManagerV1: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "WpCursorShapeManagerV1: {:?}", event);
     }
 }
 
@@ -722,7 +705,7 @@ impl Dispatch<WpCursorShapeDeviceV1, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "WpCursorShapeDeviceV1: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "WpCursorShapeDeviceV1: {:?}", event);
     }
 }
 
@@ -735,7 +718,8 @@ impl Dispatch<WlCallback, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        dprintln!(state, DebugMode::WaylandAll, "WlCallback: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Trace, "WlCallback: {:?}", event);
+
         state.render();
     }
 }
@@ -749,7 +733,7 @@ impl Dispatch<ZwpTabletManagerV2, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "ZwpTabletManagerV2: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "ZwpTabletManagerV2: {:?}", event);
     }
 }
 
@@ -762,7 +746,8 @@ impl Dispatch<ZwpTabletSeatV2, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "ZwpTabletSeatV2: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "ZwpTabletSeatV2: {:?}", event);
+
         match event {
             Event::TabletAdded { id } => {}
             Event::ToolAdded { id } => {
@@ -794,7 +779,7 @@ impl Dispatch<ZwpTabletV2, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "ZwpTabletV2: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "ZwpTabletV2: {:?}", event);
     }
 }
 
@@ -807,7 +792,7 @@ impl Dispatch<ZwpTabletPadV2, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "ZwpTabletPadV2: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Info, "ZwpTabletPadV2: {:?}", event);
     }
 }
 
@@ -820,7 +805,8 @@ impl Dispatch<ZwpTabletToolV2, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "ZwpTabletToolV2: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Debug, "ZwpTabletToolV2: {:?}", event);
+
         match event {
             zwp_tablet_tool_v2::Event::Type { tool_type } => {}
             zwp_tablet_tool_v2::Event::HardwareSerial {
@@ -918,7 +904,8 @@ impl Dispatch<WlPointer, ()> for State {
         conn: &Connection,
         qhandle: &QueueHandle<Self>,
     ) {
-        wdprintln!(state, "WlPointer: {:?}", event);
+        log!(target: "chameleos::wayland", Level::Debug, "WlPointer: {:?}", event);
+
         match event {
             wl_pointer::Event::Enter {
                 serial,

@@ -1,3 +1,6 @@
+use log::Level;
+use log::log;
+
 use crate::shader::*;
 
 use lyon::tessellation::VertexBuffers;
@@ -92,6 +95,7 @@ impl Wgpu {
             .unwrap();
 
         let info = wgpu_adapter.get_info();
+        log!(target: "chameleos::render", Level::Info, "{:?}", wgpu_adapter.get_info());
         println!("GPU: {}", info.name);
         println!("Device Type: {:?}", info.device_type);
         println!("Driver: {} {}", info.driver, info.driver_info);
@@ -109,6 +113,7 @@ impl Wgpu {
             .unwrap();
 
         let surface_caps = wgpu_surface.get_capabilities(&wgpu_adapter);
+        log!(target: "chameleos::render", Level::Info, "{:?}", surface_caps);
 
         let format = surface_caps
             .formats
@@ -135,6 +140,10 @@ impl Wgpu {
             // screen. Except for some reason sometimes it also just works with Opaque (looking at
             // you Intel iGPU). No idea why.
             .unwrap_or(wgpu::CompositeAlphaMode::Auto);
+
+        log!(target: "chameleos::render", Level::Info, "Format: {:?}", format);
+        log!(target: "chameleos::render", Level::Info, "Present Mode: {:?}", present_mode);
+        log!(target: "chameleos::render", Level::Info, "Alpha Mode: {:?}", alpha_mode);
 
         // https://docs.rs/wgpu/latest/wgpu/struct.SurfaceCapabilities.html
         let wgpu_config = wgpu::SurfaceConfiguration {

@@ -49,6 +49,15 @@ The color can be given in whatever formats the [csscolorparser](https://crates.i
 
 The only eraser type currently supported is a stroke eraser. It is mapped to the right mouse button as well as pen button 1 for graphic tablets (Linux Artist Mode in [OpenTabletDriver](https://opentabletdriver.net/)). Remapping this is currently not supported. To improve performance, `chameleos` may sometimes split lines into multiple segments if they get too long, in which case only one of these segments will get erased instead of the entire line.
 
+## Logging
+
+We use [`env_logger`](https://docs.rs/env_logger/latest/env_logger/) for logging. Chameleos specific logging targets are:
+
+- `chameleos::general`
+- `chameleos::socket`
+- `chameleos::wayland`
+- `chameleos::render`
+
 ## Why "Chameleos"?
 
 ![Chameleos](https://monsterhunterwiki.org/images/a/a5/MHRS-Chameleos_Render.png)
