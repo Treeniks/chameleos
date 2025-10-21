@@ -148,7 +148,7 @@ fn main() {
         cursor_shape_manager: None,
         cursor_shape_device: None,
 
-        wpgu: None,
+        wgpu: None,
 
         stroke_width: cli.stroke_width,
         stroke_color: stroke_color,
@@ -251,7 +251,7 @@ struct State {
     cursor_shape_manager: Option<WpCursorShapeManagerV1>,
     cursor_shape_device: Option<WpCursorShapeDeviceV1>,
 
-    wpgu: Option<Wgpu>,
+    wgpu: Option<Wgpu>,
 
     stroke_width: f32,
     stroke_color: csscolorparser::Color,
@@ -290,7 +290,7 @@ impl State {
     }
 
     fn wgpu(&self) -> &Wgpu {
-        self.wpgu.as_ref().unwrap()
+        self.wgpu.as_ref().unwrap()
     }
 
     fn undo(&mut self) {
@@ -576,8 +576,8 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
 
                 let surface = state.surface();
 
-                if state.wpgu.is_none() {
-                    state.wpgu = Some(Wgpu::new(
+                if state.wgpu.is_none() {
+                    state.wgpu = Some(Wgpu::new(
                         &state.display,
                         surface,
                         width,
