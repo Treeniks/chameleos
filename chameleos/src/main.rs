@@ -66,7 +66,6 @@ use interprocess::local_socket::prelude::*;
 const EPSILON: f32 = 5.0;
 
 use clap::Parser;
-use clap::ValueEnum;
 
 #[derive(Parser)]
 struct Cli {
@@ -75,6 +74,9 @@ struct Cli {
 
     #[arg(short = 'c', long)]
     stroke_color: Option<csscolorparser::Color>,
+
+    #[arg(short = 'b', long)]
+    force_backend: Option<Backend>,
 }
 
 fn main() {
@@ -139,6 +141,7 @@ fn main() {
         cursor_shape_manager: None,
         cursor_shape_device: None,
 
+        force_backend: cli.force_backend,
         wgpu: None,
 
         stroke_width: cli.stroke_width,
@@ -248,6 +251,7 @@ struct State {
     cursor_shape_manager: Option<WpCursorShapeManagerV1>,
     cursor_shape_device: Option<WpCursorShapeDeviceV1>,
 
+    force_backend: Option<Backend>,
     wgpu: Option<Wgpu>,
 
     stroke_width: f32,
@@ -581,8 +585,14 @@ impl Dispatch<ZwlrLayerSurfaceV1, ()> for State {
                 let surface = state.surface();
 
                 if state.wgpu.is_none() {
-                    let wgpu =
-                        Wgpu::new(&state.display, surface, width, height, &state.stroke_color);
+                    let wgpu = Wgpu::new(
+                        &state.display,
+                        surface,
+                        width,
+                        height,
+                        &state.stroke_color,
+                        state.force_backend,
+                    );
 
                     if wgpu.surface_config().alpha_mode == wgpu::CompositeAlphaMode::PreMultiplied {
                         state.pre_multiply_stroke_color();

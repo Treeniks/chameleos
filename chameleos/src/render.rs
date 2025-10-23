@@ -11,7 +11,16 @@ use wayland_client::protocol::wl_surface::WlSurface;
 
 use wgpu::util::DeviceExt;
 
+use clap::ValueEnum;
+
 const SAMPLE_COUNT: u32 = 4;
+
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "lower")]
+pub enum Backend {
+    Vulkan,
+    OpenGL,
+}
 
 #[derive(Debug, Clone)]
 pub struct Geometry {
@@ -65,9 +74,14 @@ impl Wgpu {
         width: u32,
         height: u32,
         stroke_color: &csscolorparser::Color,
+        force_backend: Option<Backend>,
     ) -> Self {
         let wgpu_instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
+            backends: match force_backend {
+                Some(Backend::Vulkan) => wgpu::Backends::VULKAN,
+                Some(Backend::OpenGL) => wgpu::Backends::GL,
+                None => wgpu::Backends::all(),
+            },
             ..Default::default()
         });
 
