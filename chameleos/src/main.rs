@@ -77,15 +77,6 @@ struct Cli {
     stroke_color: Option<csscolorparser::Color>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum DebugMode {
-    /// Skips WlCallback events
-    Wayland,
-    WaylandAll,
-    Socket,
-    Other,
-}
-
 fn main() {
     env_logger::init();
 
