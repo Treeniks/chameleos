@@ -72,8 +72,12 @@ struct Cli {
     #[arg(short = 'w', long, default_value_t = 8.0)]
     stroke_width: f32,
 
-    #[arg(short = 'c', long)]
-    stroke_color: Option<csscolorparser::Color>,
+    // NOTE: We *cannot* use default_value_t
+    // because clap does a to_string roundtrip with that value.
+    // (presumably because it shows the value in the help)
+    /// Takes any CSS color parseable by the csscolorparser crate
+    #[arg(short = 'c', long, default_value = "red")]
+    stroke_color: csscolorparser::Color,
 
     #[arg(short = 'b', long)]
     force_backend: Option<Backend>,
@@ -83,10 +87,6 @@ fn main() {
     env_logger::init();
 
     let mut cli = Cli::parse();
-
-    let stroke_color = cli
-        .stroke_color
-        .unwrap_or(csscolorparser::Color::from_rgba8(255, 0, 0, 255));
 
     // setup socket for messages
     let socket_name = "chameleos.sock".to_ns_name::<GenericNamespaced>().unwrap();
@@ -145,7 +145,7 @@ fn main() {
         wgpu: None,
 
         stroke_width: cli.stroke_width,
-        stroke_color: stroke_color,
+        stroke_color: cli.stroke_color,
         color_needs_pre_multiply: false,
         current_line: Vec::new(),
         tessellated_lines: Vec::new(),
