@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+chamel = { path = "../chamel" }
+
 clap = { workspace = true }
 interprocess = { workspace = true }
 csscolorparser = { workspace = true }

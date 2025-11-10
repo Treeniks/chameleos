@@ -180,6 +180,7 @@ name = "chameleos"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "chamel",
  "clap",
  "csscolorparser",
  "env_logger",

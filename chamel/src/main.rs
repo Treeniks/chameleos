@@ -5,23 +5,13 @@ use interprocess::local_socket::Stream;
 use interprocess::local_socket::prelude::*;
 
 use clap::Parser;
-use clap::Subcommand;
+
+use chamel::Command;
 
 #[derive(Parser)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    Toggle,
-    Undo,
-    Clear,
-    ClearAndDeactivate,
-    StrokeWidth { width: f32 },
-    StrokeColor { color: csscolorparser::Color },
-    Exit,
 }
 
 fn main() -> std::io::Result<()> {
@@ -39,19 +29,6 @@ fn main() -> std::io::Result<()> {
         },
     };
 
-    match cli.command {
-        Command::Toggle => stream.write_all(b"toggle"),
-        Command::Undo => stream.write_all(b"undo"),
-        Command::Clear => stream.write_all(b"clear"),
-        Command::ClearAndDeactivate => stream.write_all(b"clear_and_deactivate"),
-        Command::StrokeWidth { width } => {
-            let s = format!("stroke_width {}", width);
-            stream.write_all(s.as_bytes())
-        }
-        Command::StrokeColor { color } => {
-            let s = format!("stroke_color {}", color.to_css_hex());
-            stream.write_all(s.as_bytes())
-        }
-        Command::Exit => stream.write_all(b"exit"),
-    }
+    let s = cli.command.serialize();
+    stream.write_all(&s)
 }

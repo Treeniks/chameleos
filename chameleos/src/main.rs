@@ -62,10 +62,13 @@ use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::ZwlrL
 use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::ListenerOptions;
 use interprocess::local_socket::prelude::*;
+use interprocess::local_socket::traits::ListenerExt;
 
 const EPSILON: f32 = 5.0;
 
 use clap::Parser;
+
+use chamel::Command;
 
 #[derive(Parser)]
 struct Cli {
@@ -115,6 +118,7 @@ fn main() {
 
     let mut state = State {
         active: false,
+        changed: false,
         width: 0,
         height: 0,
 
@@ -124,7 +128,7 @@ fn main() {
         mouse_y: None,
         mouse_button_held: false,
 
-        display,
+        display: display.clone(),
         compositor: None,
         surface: None,
         seat: None,
@@ -152,15 +156,13 @@ fn main() {
         tessellated_lines_source: Vec::new(),
     };
 
-    loop {
-        event_queue.blocking_dispatch(&mut state).unwrap();
+    event_queue.roundtrip(&mut state).unwrap();
+    let qhandle = event_queue.handle();
 
-        // request new frame
-        // needed so the application doesn't die when disabling interactivity
-        state.surface().frame(&event_queue.handle(), ());
-        state.surface().commit();
+    let (sender, receiver) = std::sync::mpsc::channel();
 
-        if let Ok(mut stream) = listener.accept() {
+    std::thread::spawn(move || {
+        for mut stream in listener.incoming().filter_map(|s| s.ok()) {
             stream.read_to_end(&mut listener_buffer);
 
             log!(
@@ -170,51 +172,43 @@ fn main() {
                 String::from_utf8_lossy(&listener_buffer)
             );
 
-            let mut split = listener_buffer.split(|&c| c == b' ');
+            match Command::deserialize(&listener_buffer) {
+                Ok(command) => sender.send(command).unwrap(),
+                Err(s) => eprintln!("{}", s),
+            }
+            listener_buffer.clear();
 
-            match split.next() {
-                Some(b"toggle") => state.toggle_input(&event_queue.handle()),
-                Some(b"undo") => state.undo(),
-                Some(b"clear") => state.clear(),
-                Some(b"clear_and_deactivate") => {
+            display.sync(&qhandle, ());
+            connection.flush().unwrap();
+        }
+    });
+
+    loop {
+        event_queue.blocking_dispatch(&mut state).unwrap();
+
+        if state.changed {
+            state.surface().frame(&event_queue.handle(), ());
+            state.surface().commit();
+        }
+
+        if let Ok(command) = receiver.try_recv() {
+            match command {
+                Command::Toggle => state.toggle_input(&event_queue.handle()),
+                Command::Undo => state.undo(),
+                Command::Clear => state.clear(),
+                Command::ClearAndDeactivate => {
                     state.clear();
                     state.deactivate(&event_queue.handle());
                 }
-                Some(b"stroke_width") => {
-                    match split
-                        .next()
-                        .and_then(|width_text| String::from_utf8(width_text.to_vec()).ok())
-                        .and_then(|width_text| width_text.parse::<f32>().ok())
-                    {
-                        Some(width) => state.stroke_width = width,
-                        None => {
-                            eprintln!("received stroke width message but couldn't parse a width")
-                        }
+                Command::StrokeWidth { width } => state.stroke_width = width,
+                Command::StrokeColor { color } => {
+                    state.stroke_color = color;
+                    if state.color_needs_pre_multiply {
+                        state.pre_multiply_stroke_color();
                     }
                 }
-                Some(b"stroke_color") => {
-                    match split
-                        .next()
-                        .and_then(|color_text| String::from_utf8(color_text.to_vec()).ok())
-                        .and_then(|color_text| csscolorparser::parse(&color_text).ok())
-                    {
-                        Some(color) => {
-                            state.stroke_color = color;
-                            if state.color_needs_pre_multiply {
-                                state.pre_multiply_stroke_color();
-                            }
-                        }
-                        None => {
-                            eprintln!("received stroke color message but couldn't parse a color")
-                        }
-                    }
-                }
-                Some(b"exit") => break,
-                Some(message) => eprintln!("unknown message: {}", String::from_utf8_lossy(message)),
-                None => eprintln!("received empty message"),
+                Command::Exit => break,
             }
-
-            listener_buffer.clear();
         }
     }
 
@@ -225,6 +219,7 @@ fn main() {
 
 struct State {
     active: bool,
+    changed: bool,
     width: usize,
     height: usize,
 
@@ -308,12 +303,16 @@ impl State {
         } else {
             self.current_line.clear();
         }
+
+        self.changed = true;
     }
 
     fn clear(&mut self) {
         self.tessellated_lines.clear();
         self.tessellated_lines_source.clear();
         self.current_line.clear();
+
+        self.changed = true;
     }
 
     fn erase(&mut self) {
@@ -362,6 +361,8 @@ impl State {
             if let Some(i) = to_remove {
                 self.tessellated_lines.remove(i);
                 self.tessellated_lines_source.remove(i);
+
+                self.changed = true;
             }
         }
     }
@@ -391,6 +392,8 @@ impl State {
                 self.tessellated_lines_source.push(path);
                 self.current_line.clear();
             }
+
+            self.changed = true;
         }
     }
 
@@ -737,6 +740,7 @@ impl Dispatch<WlCallback, ()> for State {
         log!(target: "chameleos::wayland", Level::Trace, "WlCallback: {:?}", event);
 
         state.render();
+        state.changed = false;
     }
 }
 
