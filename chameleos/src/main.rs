@@ -733,8 +733,13 @@ impl Dispatch<WlCallback, ()> for State {
     ) {
         log!(target: "chameleos::wayland", Level::Trace, "WlCallback: {:?}", event);
 
-        state.render();
-        state.changed = false;
+        match event {
+            wl_callback::Event::Done { callback_data } => {
+                state.render();
+                state.changed = false;
+            }
+            _ => {}
+        }
     }
 }
 
