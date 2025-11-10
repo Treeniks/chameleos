@@ -180,11 +180,6 @@ fn main() {
     loop {
         event_queue.blocking_dispatch(&mut state).unwrap();
 
-        if state.changed {
-            state.surface().frame(&event_queue.handle(), ());
-            state.surface().commit();
-        }
-
         if let Ok(command) = receiver.try_recv() {
             match command {
                 Command::Toggle => state.toggle_input(&event_queue.handle()),
@@ -735,8 +730,13 @@ impl Dispatch<WlCallback, ()> for State {
 
         match event {
             wl_callback::Event::Done { callback_data } => {
-                state.render();
-                state.changed = false;
+                if state.changed {
+                    state.render();
+                    state.changed = false;
+                }
+
+                state.surface().frame(qhandle, ());
+                state.surface().commit();
             }
             _ => {}
         }

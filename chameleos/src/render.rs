@@ -140,13 +140,8 @@ impl Wgpu {
             .copied()
             .unwrap_or(surface_caps.formats[0]);
 
-        let present_mode = surface_caps
-            .present_modes
-            .iter()
-            .find(|present_mode| matches!(present_mode, wgpu::PresentMode::Mailbox))
-            .copied()
-            // docs say this one is guaranteed to work
-            .unwrap_or(wgpu::PresentMode::Fifo);
+        // this one is guaranteed to work and works like VSync
+        let present_mode = wgpu::PresentMode::Fifo;
 
         // only PreMultiplied for now
         let alpha_mode = surface_caps
