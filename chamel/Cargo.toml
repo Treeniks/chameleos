@@ -5,5 +5,4 @@ edition = "2024"
 
 [dependencies]
 clap = { workspace = true }
-interprocess = { workspace = true }
 csscolorparser = { workspace = true }

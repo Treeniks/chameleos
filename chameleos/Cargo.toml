@@ -7,7 +7,6 @@ edition = "2024"
 chamel = { path = "../chamel" }
 
 clap = { workspace = true }
-interprocess = { workspace = true }
 csscolorparser = { workspace = true }
 
 wayland-client = "0.31.11"

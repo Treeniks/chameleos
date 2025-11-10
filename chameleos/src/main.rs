@@ -3,6 +3,10 @@
 use std::collections::HashMap;
 use std::io::Read;
 
+use std::os::linux::net::SocketAddrExt;
+use std::os::unix::net::SocketAddr;
+use std::os::unix::net::UnixListener;
+
 mod shader;
 use shader::*;
 
@@ -59,11 +63,6 @@ use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::ZwlrLay
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1;
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::ZwlrLayerSurfaceV1;
 
-use interprocess::local_socket::GenericNamespaced;
-use interprocess::local_socket::ListenerOptions;
-use interprocess::local_socket::prelude::*;
-use interprocess::local_socket::traits::ListenerExt;
-
 const EPSILON: f32 = 5.0;
 
 use clap::Parser;
@@ -92,19 +91,14 @@ fn main() {
     let mut cli = Cli::parse();
 
     // setup socket for messages
-    let socket_name = "chameleos.sock".to_ns_name::<GenericNamespaced>().unwrap();
-    let socket_opts = ListenerOptions::new()
-        .name(socket_name)
-        .nonblocking(interprocess::local_socket::ListenerNonblockingMode::Accept);
-    let listener = match socket_opts.create_sync() {
+    let socket_addr = SocketAddr::from_abstract_name("chameleos.sock").unwrap();
+    let listener = match UnixListener::bind_addr(&socket_addr) {
         Ok(l) => l,
         Err(e) => match e.kind() {
             std::io::ErrorKind::AddrInUse => {
-                panic!("Socket occuppied, maybe chameleos is already running?");
+                panic!("Socket occuppied, maybe chameleos is already running?")
             }
-            _ => {
-                panic!("{}", e);
-            }
+            _ => panic!("{}", e),
         },
     };
     let mut listener_buffer: Vec<u8> = Vec::with_capacity(128);

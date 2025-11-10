@@ -1,8 +1,7 @@
 use std::io::Write;
-
-use interprocess::local_socket::GenericNamespaced;
-use interprocess::local_socket::Stream;
-use interprocess::local_socket::prelude::*;
+use std::os::linux::net::SocketAddrExt;
+use std::os::unix::net::SocketAddr;
+use std::os::unix::net::UnixStream;
 
 use clap::Parser;
 
@@ -17,17 +16,8 @@ struct Cli {
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
-    let socket_name = "chameleos.sock".to_ns_name::<GenericNamespaced>()?;
-    let mut stream = match Stream::connect(socket_name) {
-        Ok(stream) => stream,
-        Err(e) => match e.kind() {
-            std::io::ErrorKind::ConnectionRefused => {
-                eprintln!("Connection Refused, is chameleos running?");
-                return Err(e);
-            }
-            _ => return Err(e),
-        },
-    };
+    let socket_addr = SocketAddr::from_abstract_name("chameleos.sock")?;
+    let mut stream = UnixStream::connect_addr(&socket_addr)?;
 
     let s = cli.command.serialize();
     stream.write_all(&s)
