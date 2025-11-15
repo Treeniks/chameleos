@@ -119,7 +119,7 @@ impl Dispatch<WlRegistry, QueueHandle<State>> for SetupWaylandState {
             } => match interface.as_str() {
                 "wl_compositor" => {
                     let compositor =
-                        registry.bind::<WlCompositor, _, _>(name, 6, state_qhandle, ());
+                        registry.bind::<WlCompositor, _, _>(name, 5, state_qhandle, ());
                     let surface = compositor.create_surface(state_qhandle, ());
 
                     setup_state.compositor = Some(compositor);
