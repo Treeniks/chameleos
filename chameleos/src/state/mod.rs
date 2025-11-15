@@ -255,7 +255,7 @@ impl State {
         self.draw.set_stroke_color(color);
     }
 
-    fn render(&self) {
+    fn render(&mut self) {
         if let Some(ref wgpu) = self.wgpu {
             self.draw.render(wgpu);
         }

@@ -55,7 +55,7 @@ impl DrawState {
         self.stroke_color.b *= self.stroke_color.a;
     }
 
-    pub fn render(&self, wgpu: &WgpuState) {
+    pub fn render(&mut self, wgpu: &WgpuState) {
         if !self.changed {
             return;
         }
@@ -69,6 +69,8 @@ impl DrawState {
         } else {
             wgpu.render(&self.tessellated_lines);
         }
+
+        self.changed = false;
     }
 
     pub fn add_point_to_line(&mut self, (mouse_x, mouse_y): (f64, f64)) {
