@@ -5,4 +5,4 @@ default-members = ["chameleos"]
 
 [workspace.dependencies]
 clap = { version = "4.5.48", features = ["derive"] }
-csscolorparser = "0.7.2"
+csscolorparser = "0.8.0"
