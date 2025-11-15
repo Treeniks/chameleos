@@ -1,7 +1,9 @@
+mod shader;
+pub use shader::Vertex;
+use shader::*;
+
 use log::Level;
 use log::log;
-
-use crate::shader::*;
 
 use lyon::tessellation::VertexBuffers;
 
@@ -45,7 +47,8 @@ impl Geometry {
     }
 }
 
-pub struct Wgpu {
+#[allow(unused)]
+pub struct WgpuState {
     surface: wgpu::Surface<'static>,
     surface_config: wgpu::SurfaceConfiguration,
     device: wgpu::Device,
@@ -63,7 +66,7 @@ pub struct Wgpu {
     screen_bind_group: wgpu::BindGroup,
 }
 
-impl Wgpu {
+impl WgpuState {
     pub fn surface_config(&self) -> &wgpu::SurfaceConfiguration {
         &self.surface_config
     }
@@ -73,7 +76,6 @@ impl Wgpu {
         surface: &WlSurface,
         width: u32,
         height: u32,
-        stroke_color: &csscolorparser::Color,
         force_backend: Option<Backend>,
     ) -> Self {
         let wgpu_instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
