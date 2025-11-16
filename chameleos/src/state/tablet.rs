@@ -131,19 +131,11 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
             };
 
             if let Some(pos) = draw_pos {
-                draw.add_point_to_line(pos);
-            }
-
-            let erase_pos = if tablet.button_held {
-                sequence.motion
-            } else if sequence.button_pressed {
-                tablet.pos
-            } else {
-                None
-            };
-
-            if let Some(pos) = erase_pos {
-                draw.erase(pos);
+                if tablet.button_held {
+                    draw.erase(pos);
+                } else {
+                    draw.add_point_to_line(pos);
+                }
             }
 
             if sequence.pen_up {
