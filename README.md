@@ -2,15 +2,14 @@
 
 Wayland screen annotation tool, tested for [niri](https://yalter.github.io/niri/) and [Hyprland](https://hypr.land/).
 
-Originally [bodged together](https://github.com/Treeniks/chameleos-egui) with [eframe](https://docs.rs/eframe/latest/eframe/) for a lecture, this repository holds a complete low-level rewrite, utilizing wayland's layer shell protocol with [wayland-client](https://crates.io/crates/wayland-client) directly, path tessellation with [lyon](https://crates.io/crates/lyon) and GPU rendering with [wgpu](https://wgpu.rs/).
+https://github.com/user-attachments/assets/347d9f77-437f-4793-9df3-1696dd4df926
 
-> [!NOTE]
-> Project status: Very usable, if still barebones.
+Originally [bodged together](https://github.com/Treeniks/chameleos-egui) with [eframe](https://docs.rs/eframe/latest/eframe/) for a lecture, this repository holds a complete low-level rewrite, utilizing wayland's layer shell protocol with [wayland-client](https://crates.io/crates/wayland-client) directly, path tessellation with [lyon](https://crates.io/crates/lyon) and GPU rendering with [wgpu](https://wgpu.rs/).
 
 ## Usage
 
 First, install the helper utility `chamel`:
-```
+```sh
 git clone git@github.com:Treeniks/chameleos.git
 cd chameleos
 cargo install --path ./chamel
@@ -18,11 +17,13 @@ cargo install --path ./chamel
 
 `chamel` is used to send commands to `chameleos` while it is running. `chameleos` itself has no keyboard input functionality, all keybinds (for example to toggle input) must be handled from the compositor and `chamel`.
 
-To run`chameleos` itself:
-```
+To run `chameleos` itself:
+```sh
 cargo run --release
+# or install:
+cargo install --path ./chameleos
 ```
-This will create a layer shell overlay over your entire current screen in which you can draw. To toggle input, run `chamel toggle`, after which you can draw with the left mouse button or with a pen on a graphic tablet.
+This will create a layer shell overlay over your entire current screen in which you can draw. There is currently no way to switch display after start. To toggle input, run `chamel toggle`, after which you can draw with the left mouse button or with a pen on a graphic tablet.
 
 Example keybind configuration in niri:
 ```kdl
@@ -43,7 +44,7 @@ The stroke color can be set
 - on startup with `chameleos --stroke-color "#00BFFF"` (default is `#FF0000`)
 - on the fly with `chamel stroke-color "#00BFFF"`
 
-The color can be given in whatever formats the [csscolorparser](https://crates.io/crates/csscolorparser) crate supports. The color can also include opacity.
+The color can be given in whatever formats the [csscolorparser](https://crates.io/crates/csscolorparser) crate supports. The color can also include opacity, so you could make a highlighter pen. Multiple pens aren't explicitly supported, but the same can be achieved with respective stroke-color and stroke-width keybinds.
 
 ### Eraser
 
