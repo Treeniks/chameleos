@@ -25,8 +25,6 @@ The chameleos packages will install both `chameleos` and `chamel`.
 [![chameleos-git](https://img.shields.io/aur/version/chameleos-git?logo=Arch%20Linux&label=chameleos-git
 )](https://aur.archlinux.org/packages/chameleos-git)
 
-https://aur.archlinux.org/packages/chameleos-git
-
 E.g. using your favorite AUR helper:
 ```sh
 paru -S chameleos
