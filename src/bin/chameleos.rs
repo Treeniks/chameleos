@@ -96,6 +96,7 @@ fn main() {
         }
     }
 
+    state.close();
     println!("Exiting");
 
     // TODO maybe should do some better cleanup?

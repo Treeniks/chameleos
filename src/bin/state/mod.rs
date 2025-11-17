@@ -260,6 +260,12 @@ impl State {
             self.draw.render(wgpu);
         }
     }
+
+    pub fn close(&mut self) {
+        if let Some(wgpu) = self.wgpu.take() {
+            drop(wgpu);
+        }
+    }
 }
 
 #[allow(unused)]
