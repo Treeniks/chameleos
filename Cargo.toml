@@ -1,7 +1,12 @@
 [package]
 name = "chameleos"
 version = "0.1.0"
+authors = ["Thomas Lindae <thomas.lindae@in.tum.de>"]
 edition = "2024"
+description = "Screen annotation tool for niri and Hyprland"
+repository = "https://github.com/Treeniks/chameleos"
+license = "MIT"
+keywords = ["wayland"]
 default-run = "chameleos"
 
 [dependencies]
