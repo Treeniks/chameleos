@@ -1,5 +1,11 @@
 # Chameleos
 
+[![License](https://img.shields.io/github/license/Treeniks/chameleos)](https://github.com/Treeniks/chameleos/blob/master/LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/Treeniks/chameleos/ci.yml?label=ci)
+](https://github.com/Treeniks/chameleos/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Treeniks/chameleos
+)](https://github.com/Treeniks/chameleos/releases)
+
 Wayland screen annotation tool, tested for [niri](https://yalter.github.io/niri/) and [Hyprland](https://hypr.land/).
 
 https://github.com/user-attachments/assets/347d9f77-437f-4793-9df3-1696dd4df926
@@ -8,9 +14,38 @@ Originally [bodged together](https://github.com/Treeniks/chameleos-egui) with [e
 
 ## Install
 
+The chameleos packages will install both `chameleos` and `chamel`.
+
+### AUR (Arch Linux)
+
+[![chameleos](https://img.shields.io/aur/version/chameleos?logo=Arch%20Linux&label=chameleos
+)](https://aur.archlinux.org/packages/chameleos)
+[![chameleos-bin](https://img.shields.io/aur/version/chameleos-bin?logo=Arch%20Linux&label=chameleos-bin
+)](https://aur.archlinux.org/packages/chameleos-bin)
+[![chameleos-git](https://img.shields.io/aur/version/chameleos-git?logo=Arch%20Linux&label=chameleos-git
+)](https://aur.archlinux.org/packages/chameleos-git)
+
+https://aur.archlinux.org/packages/chameleos-git
+
+E.g. using your favorite AUR helper:
 ```sh
-# this will install both `chameleos` and `chamel`
-cargo install --git https://github.com/Treeniks/chameleos
+paru -S chameleos
+```
+
+### Cargo
+
+[![Crates.io](https://img.shields.io/crates/v/chameleos)](https://crates.io/crates/chameleos)
+
+```sh
+cargo install --locked chameleos
+```
+
+### Build From Source
+
+```sh
+git clone https://github.com/Treeniks/chameleos
+cd chameleos
+cargo build --locked --release
 ```
 
 ## Usage
