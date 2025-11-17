@@ -5,7 +5,7 @@ use std::os::unix::net::UnixStream;
 
 use clap::Parser;
 
-use chamel::Command;
+use chameleos::Command;
 
 #[derive(Parser)]
 struct Cli {

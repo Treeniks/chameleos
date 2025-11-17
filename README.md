@@ -6,22 +6,22 @@ https://github.com/user-attachments/assets/347d9f77-437f-4793-9df3-1696dd4df926
 
 Originally [bodged together](https://github.com/Treeniks/chameleos-egui) with [eframe](https://docs.rs/eframe/latest/eframe/) for a lecture, this repository holds a complete low-level rewrite, utilizing wayland's layer shell protocol with [wayland-client](https://crates.io/crates/wayland-client) directly, path tessellation with [lyon](https://crates.io/crates/lyon) and GPU rendering with [wgpu](https://wgpu.rs/).
 
-## Usage
+## Install
 
-First, install the helper utility `chamel`:
 ```sh
 git clone git@github.com:Treeniks/chameleos.git
 cd chameleos
-cargo install --path ./chamel
+# this will install both `chameleos` and `chamel`
+cargo install --path .
 ```
 
-`chamel` is used to send commands to `chameleos` while it is running. `chameleos` itself has no keyboard input functionality, all keybinds (for example to toggle input) must be handled from the compositor and `chamel`.
+## Usage
 
-To run `chameleos` itself:
+`chamel` is a helper utility used to send commands to `chameleos` while it is running. `chameleos` itself has no keyboard input functionality, all keybinds (for example to toggle input) must be handled from the compositor and `chamel`.
+
+To start `chameleos`:
 ```sh
-cargo run --release
-# or install:
-cargo install --path ./chameleos
+chameleos &
 ```
 This will create a layer shell overlay over your entire current screen in which you can draw. There is currently no way to switch display after start. To toggle input, run `chamel toggle`, after which you can draw with the left mouse button or with a pen on a graphic tablet.
 
