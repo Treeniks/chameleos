@@ -63,7 +63,7 @@ jobs:
           cp target/${{ matrix.job.target }}/release/chameleos "$PKG_NAME"
           cp target/${{ matrix.job.target }}/release/chamel "$PKG_NAME"
 
-          tar czf "$TARBALL" "$PKG_NAME"
+          tar czf "$TARBALL" --directory="$PKG_NAME" .
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
