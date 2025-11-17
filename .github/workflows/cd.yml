@@ -46,6 +46,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ matrix.job.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.job.target }}-
       - name: Build
         run: cargo build --locked --release --target=${{ matrix.job.target }}
       - name: Create Tarball
