@@ -97,6 +97,4 @@ fn main() {
     }
 
     println!("Exiting");
-
-    // TODO maybe should do some better cleanup?
 }

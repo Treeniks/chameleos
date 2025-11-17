@@ -262,6 +262,12 @@ impl State {
     }
 }
 
+impl Drop for State {
+    fn drop(&mut self) {
+        self.wgpu.take();
+    }
+}
+
 #[allow(unused)]
 struct WaylandState {
     connection: Connection,
