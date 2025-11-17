@@ -3,7 +3,7 @@ name: CD
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
+      - "v*"
 
 jobs:
   metadata:
@@ -51,7 +51,7 @@ jobs:
       - name: Create Tarball
         id: package
         run: |
-          PKG_NAME=chameleos-${{ needs.metadata.outputs.version }}-${{ matrix.job.target }}
+          PKG_NAME=chameleos-v${{ needs.metadata.outputs.version }}-${{ matrix.job.target }}
           TARBALL=${PKG_NAME}.tar.gz
 
           echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
