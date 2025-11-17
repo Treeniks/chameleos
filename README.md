@@ -9,10 +9,8 @@ Originally [bodged together](https://github.com/Treeniks/chameleos-egui) with [e
 ## Install
 
 ```sh
-git clone git@github.com:Treeniks/chameleos.git
-cd chameleos
 # this will install both `chameleos` and `chamel`
-cargo install --path .
+cargo install --git https://github.com/Treeniks/chameleos
 ```
 
 ## Usage
