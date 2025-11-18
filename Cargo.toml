@@ -33,3 +33,6 @@ pollster = "0.4.0"
 
 lyon = "1.0.16"
 bytemuck = "1.24.0"
+
+[build-dependencies]
+chrono = "0.4.42"

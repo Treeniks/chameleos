@@ -16,7 +16,17 @@ use chameleos::Command;
 
 const EPSILON: f32 = 5.0;
 
+mod metadata {
+    include!(concat!(env!("OUT_DIR"), "/metadata.rs"));
+}
+
 #[derive(Parser)]
+#[command(
+    version = metadata::VERSION,
+    long_version = metadata::LONG_VERSION,
+    about,
+    long_about = None,
+)]
 struct Cli {
     #[arg(short = 'w', long, default_value_t = 8.0)]
     stroke_width: f32,
