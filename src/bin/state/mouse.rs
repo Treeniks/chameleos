@@ -12,6 +12,18 @@ use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::
 use log::Level;
 use log::log;
 
+#[inline(always)]
+pub fn draw_pos(
+    pressed: bool,
+    motion: Option<(f64, f64)>,
+    held: bool,
+    pos: Option<(f64, f64)>,
+) -> Option<(f64, f64)> {
+    held.then_some(motion)
+        .flatten()
+        .or_else(|| pressed.then_some(pos).flatten())
+}
+
 #[derive(Default)]
 pub struct MouseState {
     event_sequence: EventSequence,
@@ -76,25 +88,23 @@ impl Dispatch<WlPointer, (), super::State> for MouseState {
                 device.set_shape(serial, Shape::Crosshair);
             }
 
-            let draw_pos = if mouse.left_button_held {
-                sequence.motion
-            } else if sequence.left_button_pressed {
-                mouse.mouse_pos
-            } else {
-                None
-            };
+            let pen_pos = draw_pos(
+                sequence.left_button_pressed,
+                sequence.motion,
+                mouse.left_button_held,
+                mouse.mouse_pos,
+            );
 
-            if let Some(pos) = draw_pos {
+            if let Some(pos) = pen_pos {
                 draw.add_point_to_line(pos);
             }
 
-            let erase_pos = if mouse.right_button_held {
-                sequence.motion
-            } else if sequence.right_button_pressed {
-                mouse.mouse_pos
-            } else {
-                None
-            };
+            let erase_pos = draw_pos(
+                sequence.right_button_pressed,
+                sequence.motion,
+                mouse.right_button_held,
+                mouse.mouse_pos,
+            );
 
             if let Some(pos) = erase_pos {
                 draw.erase(pos);

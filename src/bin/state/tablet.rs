@@ -23,6 +23,8 @@ use wayland_protocols::wp::tablet::zv2::client::zwp_tablet_seat_v2::EVT_TOOL_ADD
 use log::Level;
 use log::log;
 
+use super::mouse;
+
 #[derive(Default)]
 pub struct TabletState {
     event_sequence: EventSequence,
@@ -31,7 +33,7 @@ pub struct TabletState {
     tablet_cursor_shape_devices: HashMap<ObjectId, WpCursorShapeDeviceV1>,
 
     pos: Option<(f64, f64)>,
-    pen_is_down: bool,
+    pen_held: bool,
     button_held: bool,
 }
 
@@ -45,11 +47,11 @@ impl TabletState {
             self.pos = Some(new_pos);
         }
 
-        if sequence.pen_down {
-            self.pen_is_down = true;
+        if sequence.pen_pressed {
+            self.pen_held = true;
         }
-        if sequence.pen_up {
-            self.pen_is_down = false;
+        if sequence.pen_released {
+            self.pen_held = false;
         }
 
         if sequence.button_pressed {
@@ -112,7 +114,7 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
         let tablet = &mut state.tablet;
         let draw = &mut state.draw;
 
-        // TODO this is basically identical to MouseState
+        // TODO this is very similar to MouseState
         if let Some(sequence) = tablet.event_sequence.dispatch(event) {
             tablet.update_state(sequence);
 
@@ -122,15 +124,14 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
                 device.set_shape(serial, Shape::Crosshair);
             }
 
-            let draw_pos = if tablet.pen_is_down {
-                sequence.motion
-            } else if sequence.pen_down {
-                tablet.pos
-            } else {
-                None
-            };
+            let pen_pos = mouse::draw_pos(
+                sequence.pen_pressed,
+                sequence.motion,
+                tablet.pen_held,
+                tablet.pos,
+            );
 
-            if let Some(pos) = draw_pos {
+            if let Some(pos) = pen_pos {
                 if tablet.button_held {
                     draw.erase(pos);
                 } else {
@@ -138,7 +139,7 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
                 }
             }
 
-            if sequence.pen_up {
+            if sequence.pen_released {
                 draw.cut_line();
             }
         }
@@ -149,8 +150,8 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
 struct EventSequence {
     motion: Option<(f64, f64)>,
 
-    pen_down: bool,
-    pen_up: bool,
+    pen_pressed: bool,
+    pen_released: bool,
 
     button_pressed: bool,
     button_released: bool,
@@ -171,11 +172,11 @@ impl EventSequence {
                 None
             }
             Event::Down { serial: _ } => {
-                self.pen_down = true;
+                self.pen_pressed = true;
                 None
             }
             Event::Up => {
-                self.pen_up = true;
+                self.pen_released = true;
                 None
             }
             Event::Motion { x, y } => {
