@@ -16,7 +16,7 @@ pub struct DrawState {
 impl DrawState {
     pub fn new(stroke_width: f32, stroke_color: csscolorparser::Color) -> Self {
         Self {
-            changed: true, // init with true!
+            changed: false,
             height: 0,
             stroke_width,
             stroke_color,
@@ -56,10 +56,12 @@ impl DrawState {
     }
 
     pub fn render(&mut self, wgpu: &WgpuState) {
-        if !self.changed {
-            return;
+        if self.changed {
+            self.force_render(wgpu);
         }
+    }
 
+    pub fn force_render(&mut self, wgpu: &WgpuState) {
         if let Some((current_line_geometry, _)) = self.tessellate_current_line() {
             wgpu.render(
                 self.tessellated_lines

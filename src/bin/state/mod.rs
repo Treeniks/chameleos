@@ -260,6 +260,12 @@ impl State {
             self.draw.render(wgpu);
         }
     }
+
+    fn force_render(&mut self) {
+        if let Some(ref wgpu) = self.wgpu {
+            self.draw.force_render(wgpu);
+        }
+    }
 }
 
 impl Drop for State {
@@ -388,6 +394,9 @@ impl Dispatch<ZwlrLayerSurfaceV1, Option<Backend>> for State {
                     }
 
                     state.wgpu = Some(wgpu);
+
+                    // some compositors are unhappy if we don't force render here
+                    state.force_render();
                 }
             }
             Event::Closed => {}
