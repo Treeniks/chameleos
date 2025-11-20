@@ -139,7 +139,7 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
                 }
             }
 
-            if sequence.pen_released {
+            if sequence.pen_released || sequence.button_pressed {
                 draw.cut_line();
             }
         }
