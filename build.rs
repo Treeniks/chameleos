@@ -19,12 +19,14 @@ fn main() {
 
     let version = {
         let (status, describe) = run_command(["git", "describe", "--exact-match", "--tags"]);
-        if status.success() {
-            describe
-        } else {
-            let (_status, describe) = run_command(["git", "describe", "--long", "--tags"]);
-            describe
-        }
+        status
+            .success()
+            .then_some(describe)
+            .or_else(|| {
+                let (status, describe) = run_command(["git", "describe", "--long", "--tags"]);
+                status.success().then_some(describe)
+            })
+            .unwrap_or_else(|| format!("v{}", std::env::var("CARGO_PKG_VERSION").unwrap()))
     };
 
     let commit_hash = run_command(["git", "rev-parse", "HEAD"]).1;
@@ -49,9 +51,13 @@ fn main() {
         s
     };
 
-    let long_version = format!(
-        "{version}\ncommit hash: {commit_hash}\nbuild time: {build_time}\n{rustc_version}\n{target}",
-    );
+    let mut long_version = format!("{version}",);
+    if !commit_hash.is_empty() {
+        long_version.push_str(&format!("\ncommit hash: {commit_hash}"));
+    }
+    long_version.push_str(&format!(
+        "\nbuild time: {build_time}\n{rustc_version}\n{target}"
+    ));
 
     let out_dir = std::env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("metadata.rs");
