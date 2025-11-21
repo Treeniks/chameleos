@@ -7,7 +7,18 @@ use clap::Parser;
 
 use chameleos::Command;
 
+mod metadata {
+    include!(concat!(env!("OUT_DIR"), "/metadata.rs"));
+}
+
 #[derive(Parser)]
+#[command(
+    name = "chamel",
+    version = metadata::VERSION,
+    long_version = metadata::LONG_VERSION,
+    about = "Helper utility for sending commands to chameleos",
+    long_about = None,
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
