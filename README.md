@@ -54,7 +54,7 @@ To start `chameleos`:
 ```sh
 chameleos &
 ```
-This will create a layer shell overlay over your entire current screen in which you can draw. There is currently no way to switch display after start. To toggle input, run `chamel toggle`, after which you can draw with the left mouse button or with a pen on a graphic tablet.
+This will create a layer shell overlay over your entire current screen in which you can draw. There is currently no way to switch display after start. To toggle input, run `chamel toggle`, after which you can draw with the left mouse button, with a pen on a graphic tablet, or with one finger on a touchscreen.
 
 Example keybind configuration in niri:
 ```kdl

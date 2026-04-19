@@ -11,6 +11,8 @@ pub struct DrawState {
     current_line: Vec<(f32, f32)>,
     tessellated_lines: Vec<Geometry>,
     tessellated_lines_source: Vec<lyon::path::Path>,
+    /// Stroked ring at the active drawing finger; drawn above ink.
+    touch_cursor: Option<Geometry>,
 }
 
 impl DrawState {
@@ -24,6 +26,7 @@ impl DrawState {
             current_line: Vec::new(),
             tessellated_lines: Vec::new(),
             tessellated_lines_source: Vec::new(),
+            touch_cursor: None,
         }
     }
 
@@ -62,25 +65,30 @@ impl DrawState {
     }
 
     pub fn force_render(&mut self, wgpu: &WgpuState) {
-        if let Some((current_line_geometry, _)) = self.tessellate_current_line() {
-            wgpu.render(
-                self.tessellated_lines
-                    .iter()
-                    .chain(std::iter::once(&current_line_geometry)),
-            );
-        } else {
-            wgpu.render(&self.tessellated_lines);
-        }
+        wgpu.render(
+            self.tessellated_lines
+                .iter()
+                .chain(self.tessellate_current_line().map(|(g, _)| g).iter())
+                .chain(self.touch_cursor.iter()),
+        );
 
         self.changed = false;
     }
 
-    pub fn add_point_to_line(&mut self, (mouse_x, mouse_y): (f64, f64)) {
+    pub fn add_point_to_line(&mut self, pos: (f64, f64)) {
+        self.add_point_to_line_with_epsilon(pos, crate::EPSILON);
+    }
+
+    pub fn add_point_to_line_touch(&mut self, pos: (f64, f64)) {
+        self.add_point_to_line_with_epsilon(pos, crate::TOUCH_EPSILON);
+    }
+
+    pub fn add_point_to_line_with_epsilon(&mut self, (mouse_x, mouse_y): (f64, f64), epsilon: f32) {
         let new_x = mouse_x as f32;
         let new_y = self.height as f32 - mouse_y as f32;
         match self.current_line.last() {
             Some((x, y)) => {
-                if f32::abs(x - new_x) + f32::abs(y - new_y) > crate::EPSILON {
+                if f32::abs(x - new_x) + f32::abs(y - new_y) > epsilon {
                     self.current_line.push((new_x, new_y));
                     self.changed = true;
                 }
@@ -127,6 +135,76 @@ impl DrawState {
         self.current_line.clear();
 
         self.changed = true;
+    }
+
+    pub fn set_touch_drawing_cursor_surface(&mut self, surface: Option<(f64, f64)>) {
+        let next = surface.map(|(sx, sy)| self.tessellate_touch_cursor_ring(sx, sy));
+        if self.touch_cursor.is_none() && next.is_none() {
+            return;
+        }
+        self.touch_cursor = next;
+        self.changed = true;
+    }
+
+    fn cursor_indicator_color(&self) -> csscolorparser::Color {
+        let mut c = csscolorparser::parse("#D0FFFFFF").unwrap();
+        if self.color_needs_pre_multiply {
+            c.r *= c.a;
+            c.g *= c.a;
+            c.b *= c.a;
+        }
+        c
+    }
+
+    fn tessellate_touch_cursor_ring(&self, sx: f64, sy: f64) -> Geometry {
+        use crate::render::Vertex;
+        use lyon::math::point;
+        use lyon::path::Path;
+        use lyon::tessellation::BuffersBuilder;
+        use lyon::tessellation::StrokeOptions;
+        use lyon::tessellation::StrokeTessellator;
+        use lyon::tessellation::StrokeVertex;
+        use lyon::tessellation::VertexBuffers;
+
+        let cx = sx as f32;
+        let cy = self.height as f32 - sy as f32;
+        let radius = (self.stroke_width * 2.0).clamp(10.0, 28.0);
+        let ring_width = (self.stroke_width * 0.35).clamp(1.5, 3.5);
+
+        let segments = 40u32;
+        let mut builder = Path::builder();
+        for i in 0..=segments {
+            let t = i as f32 / segments as f32 * std::f32::consts::TAU;
+            let x = cx + radius * t.cos();
+            let y = cy + radius * t.sin();
+            if i == 0 {
+                builder.begin(point(x, y));
+            } else {
+                builder.line_to(point(x, y));
+            }
+        }
+        builder.end(true);
+        let path = builder.build();
+
+        let color = self.cursor_indicator_color();
+        let mut geometry: VertexBuffers<Vertex, u16> = VertexBuffers::new();
+        let mut tessellator = StrokeTessellator::new();
+        let stroke_options = StrokeOptions::default()
+            .with_line_width(ring_width)
+            .with_line_cap(lyon::path::LineCap::Round)
+            .with_line_join(lyon::path::LineJoin::Round);
+
+        tessellator
+            .tessellate_path(
+                &path,
+                &stroke_options,
+                &mut BuffersBuilder::new(&mut geometry, |vertex: StrokeVertex| {
+                    Vertex::new(vertex, &color)
+                }),
+            )
+            .unwrap();
+
+        Geometry::new(geometry)
     }
 
     pub fn erase(&mut self, (mouse_x, mouse_y): (f64, f64)) {
