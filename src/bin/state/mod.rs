@@ -1,6 +1,7 @@
 mod draw;
 mod mouse;
 mod tablet;
+mod touch;
 
 use wayland_client::delegate_dispatch;
 
@@ -19,6 +20,7 @@ use wayland_client::protocol::wl_region::WlRegion;
 use wayland_client::protocol::wl_registry::WlRegistry;
 use wayland_client::protocol::wl_seat::WlSeat;
 use wayland_client::protocol::wl_surface::WlSurface;
+use wayland_client::protocol::wl_touch::WlTouch;
 
 use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::WpCursorShapeDeviceV1;
 use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_manager_v1::WpCursorShapeManagerV1;
@@ -180,6 +182,7 @@ pub struct State {
 
     mouse: mouse::MouseState,
     tablet: tablet::TabletState,
+    touch: touch::TouchState,
 
     wgpu: Option<WgpuState>,
 }
@@ -207,6 +210,7 @@ impl State {
             draw: draw::DrawState::new(cli.stroke_width, cli.stroke_color),
             mouse: mouse::MouseState::default(),
             tablet: tablet::TabletState::default(),
+            touch: touch::TouchState::default(),
             wgpu: None,
         };
 
@@ -232,6 +236,8 @@ impl State {
 
     pub fn deactivate(&mut self, qhandle: &QueueHandle<Self>) {
         log!(target: "chameleos::general", Level::Info, "deactivate");
+        self.touch.reset_for_deactivate(&mut self.draw);
+
         let empty_region = self.wayland.compositor.create_region(qhandle, ());
         self.wayland.surface.set_input_region(Some(&empty_region));
         self.wayland.surface.commit();
@@ -317,6 +323,9 @@ impl Dispatch<WlSeat, ()> for State {
                                 .cursor_shape_manager
                                 .get_pointer(&pointer, qhandle, ());
                         state.mouse.set_cursor_shape_device(device);
+                    }
+                    if capabilities.contains(Capability::Touch) {
+                        let _touch = seat.get_touch(qhandle, ());
                     }
                 }
                 WEnum::Unknown(_) => {}
@@ -406,6 +415,7 @@ impl Dispatch<ZwlrLayerSurfaceV1, Option<Backend>> for State {
 }
 
 delegate_dispatch!(State: [WlPointer: ()] => mouse::MouseState);
+delegate_dispatch!(State: [WlTouch: ()] => touch::TouchState);
 
 delegate_log!(WpCursorShapeManagerV1);
 delegate_log!(WpCursorShapeDeviceV1);

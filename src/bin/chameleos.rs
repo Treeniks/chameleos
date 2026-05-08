@@ -16,6 +16,9 @@ use chameleos::Command;
 
 const EPSILON: f32 = 5.0;
 
+/// Manhattan distance threshold for dropping near-duplicate touch samples (panels are dense).
+const TOUCH_EPSILON: f32 = 1.5;
+
 mod metadata {
     include!(concat!(env!("OUT_DIR"), "/metadata.rs"));
 }
