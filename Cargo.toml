@@ -9,6 +9,11 @@ license = "MIT"
 keywords = ["wayland"]
 default-run = "chameleos"
 
+# named differently from the `chameleos` bin target, as sharing the name
+# causes a rustdoc output collision (https://github.com/rust-lang/cargo/issues/6313)
+[lib]
+name = "chameleos_core"
+
 [dependencies]
 clap = { version = "4.5.48", features = ["derive"] }
 csscolorparser = "0.8.0"

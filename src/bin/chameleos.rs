@@ -12,7 +12,7 @@ use log::log;
 
 use clap::Parser;
 
-use chameleos::Command;
+use chameleos_core::Command;
 
 const EPSILON: f32 = 5.0;
 
