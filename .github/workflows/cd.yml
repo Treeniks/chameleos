@@ -9,7 +9,7 @@ jobs:
   metadata:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - id: cargo
         run: cargo metadata --no-deps --format-version 1 | jq -r '"version=" + .packages[0].version' >> $GITHUB_OUTPUT
@@ -29,24 +29,13 @@ jobs:
           - { target: x86_64-unknown-linux-gnu, os: ubuntu-24.04 }
           - { target: aarch64-unknown-linux-gnu, os: ubuntu-24.04-arm }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.job.target }}
       - name: Install Deps
-        run: |
-          sudo apt-get install -y libwayland-dev
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ matrix.job.target }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.job.target }}-
+        run: sudo apt-get install -y libwayland-dev
+      - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build --locked --release --target=${{ matrix.job.target }}
       - name: Create Tarball
@@ -66,12 +55,12 @@ jobs:
 
           tar czf "$TARBALL" --directory="$PKG_NAME" .
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.package.outputs.pkg_name }}
           path: ${{ steps.package.outputs.pkg_name }}
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: true
           files: ${{ steps.package.outputs.tarball }}
