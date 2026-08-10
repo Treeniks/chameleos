@@ -99,6 +99,12 @@
           };
           cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
+          commonArgsDev = commonArgs // {
+            CARGO_PROFILE = "dev";
+            CARGO_PROFILE_DEV_DEBUG = 0;
+          };
+          cargoArtifactsDev = craneLib.buildDepsOnly commonArgsDev;
+
           meta = {
             description = "Screen annotation tool for niri and Hyprland";
             homepage = "https://github.com/Treeniks/chameleos";
@@ -107,14 +113,20 @@
             platforms = lib.platforms.linux;
           };
 
-          chameleos = craneLib.buildPackage (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-              postFixup = "patchelf --add-rpath ${libraryPath} $out/bin/chameleos";
-              inherit meta;
-            }
-          );
+          buildChameleos =
+            commonArgs: cargoArtifacts:
+            craneLib.buildPackage (
+              commonArgs
+              // {
+                inherit cargoArtifacts;
+                postFixup = "patchelf --add-rpath ${libraryPath} $out/bin/chameleos";
+                inherit meta;
+              }
+            );
+
+          chameleos = buildChameleos commonArgs cargoArtifacts;
+          # debug build
+          chameleos-dev = buildChameleos commonArgsDev cargoArtifactsDev;
 
           checkArgs = "--workspace --all-targets --all-features";
           docFlags = "--deny warnings";
@@ -124,6 +136,7 @@
           packages = {
             default = config.packages.chameleos;
             inherit chameleos;
+            inherit chameleos-dev;
           };
 
           apps = {
@@ -132,19 +145,20 @@
             chamel.program = "${chameleos}/bin/chamel";
           };
 
+          # these checks rely only on the "dev" profile to reduce build times
           checks = {
-            inherit chameleos;
+            inherit chameleos-dev;
             chameleos-clippy = craneLib.cargoClippy (
-              commonArgs
+              commonArgsDev
               // {
-                inherit cargoArtifacts;
+                cargoArtifacts = cargoArtifactsDev;
                 cargoCheckExtraArgs = checkArgs;
               }
             );
             chameleos-doc = craneLib.cargoDoc (
-              commonArgs
+              commonArgsDev
               // {
-                inherit cargoArtifacts;
+                cargoArtifacts = cargoArtifactsDev;
                 env.RUSTDOCFLAGS = docFlags;
                 cargoDocExtraArgs = docArgs;
               }
