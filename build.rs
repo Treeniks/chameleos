@@ -51,7 +51,7 @@ fn main() {
         s
     };
 
-    let mut long_version = format!("{version}",);
+    let mut long_version = version.clone();
     if !commit_hash.is_empty() {
         long_version.push_str(&format!("\ncommit hash: {commit_hash}"));
     }

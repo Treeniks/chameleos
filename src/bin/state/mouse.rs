@@ -45,7 +45,7 @@ impl MouseState {
             self.mouse_pos = Some(new_pos);
         }
 
-        if let Some(_) = sequence.leave_serial {
+        if sequence.leave_serial.is_some() {
             self.mouse_pos = None;
         }
 

@@ -1,3 +1,5 @@
+#![allow(clippy::single_match)]
+
 mod draw;
 mod mouse;
 mod tablet;
@@ -139,7 +141,7 @@ impl Dispatch<WlRegistry, QueueHandle<State>> for SetupWaylandState {
                     let layer_shell =
                         registry.bind::<ZwlrLayerShellV1, _, _>(name, 4, state_qhandle, ());
                     let layer_surface = layer_shell.get_layer_surface(
-                        &wl_surface,
+                        wl_surface,
                         None, // TODO this sets the monitor we should spawn on
                         Layer::Overlay,
                         "chameleos".to_string(),

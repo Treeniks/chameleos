@@ -100,8 +100,8 @@ impl WgpuState {
 
         let wgpu_surface = unsafe {
             wgpu_instance.create_surface_unsafe(wgpu::SurfaceTargetUnsafe::RawHandle {
-                raw_display_handle: raw_display_handle,
-                raw_window_handle: raw_window_handle,
+                raw_display_handle,
+                raw_window_handle,
             })
         }
         .unwrap();
@@ -177,8 +177,8 @@ impl WgpuState {
         let multisampled_texture = wgpu_device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: wgpu::Extent3d {
-                width: width as u32,
-                height: height as u32,
+                width,
+                height,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,

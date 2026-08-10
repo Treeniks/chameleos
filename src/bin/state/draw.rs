@@ -200,7 +200,7 @@ impl DrawState {
         let mut geometry: VertexBuffers<Vertex, u16> = VertexBuffers::new();
 
         let mut builder = Path::builder();
-        if line.len() < 1 {
+        if line.is_empty() {
             return None;
         }
 

@@ -44,7 +44,7 @@ impl Command {
                     .and_then(|width_text| String::from_utf8(width_text.to_vec()).ok())
                     .and_then(|width_text| width_text.parse::<f32>().ok())
                 {
-                    Some(width) => Ok(Self::StrokeWidth { width: width }),
+                    Some(width) => Ok(Self::StrokeWidth { width }),
                     None => Err("received stroke width message but couldn't parse a width"),
                 }
             }
@@ -54,7 +54,7 @@ impl Command {
                     .and_then(|color_text| String::from_utf8(color_text.to_vec()).ok())
                     .and_then(|color_text| csscolorparser::parse(&color_text).ok())
                 {
-                    Some(color) => Ok(Self::StrokeColor { color: color }),
+                    Some(color) => Ok(Self::StrokeColor { color }),
                     None => Err("received stroke color message but couldn't parse a color"),
                 }
             }
