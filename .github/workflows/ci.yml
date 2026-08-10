@@ -11,14 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install Deps
-        run: sudo apt-get install -y libwayland-dev
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Format
-        run: cargo fmt --all --check
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features
-      - name: Docs
-        run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items --workspace --all-features --lib --bins
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v17
+        with:
+          name: chameleos
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      - run: nix flake check --print-build-logs
