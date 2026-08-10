@@ -179,6 +179,8 @@
                 enable = true;
                 package = rustToolchain;
               };
+              taplo.enable = true;
+              mdformat.enable = true;
             };
           };
 

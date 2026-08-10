@@ -1,10 +1,8 @@
 # Chameleos
 
 [![License](https://img.shields.io/github/license/Treeniks/chameleos)](https://github.com/Treeniks/chameleos/blob/master/LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/Treeniks/chameleos/ci.yml?label=ci)
-](https://github.com/Treeniks/chameleos/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Treeniks/chameleos
-)](https://github.com/Treeniks/chameleos/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/Treeniks/chameleos/ci.yml?label=ci)](https://github.com/Treeniks/chameleos/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Treeniks/chameleos)](https://github.com/Treeniks/chameleos/releases)
 
 Wayland screen annotation tool, tested for [niri](https://yalter.github.io/niri/) and [Hyprland](https://hypr.land/).
 
@@ -18,14 +16,12 @@ The chameleos packages will install both `chameleos` and `chamel`.
 
 ### AUR (Arch Linux)
 
-[![chameleos](https://img.shields.io/aur/version/chameleos?logo=Arch%20Linux&label=chameleos
-)](https://aur.archlinux.org/packages/chameleos)
-[![chameleos-bin](https://img.shields.io/aur/version/chameleos-bin?logo=Arch%20Linux&label=chameleos-bin
-)](https://aur.archlinux.org/packages/chameleos-bin)
-[![chameleos-git](https://img.shields.io/aur/version/chameleos-git?logo=Arch%20Linux&label=chameleos-git
-)](https://aur.archlinux.org/packages/chameleos-git)
+[![chameleos](https://img.shields.io/aur/version/chameleos?logo=Arch%20Linux&label=chameleos)](https://aur.archlinux.org/packages/chameleos)
+[![chameleos-bin](https://img.shields.io/aur/version/chameleos-bin?logo=Arch%20Linux&label=chameleos-bin)](https://aur.archlinux.org/packages/chameleos-bin)
+[![chameleos-git](https://img.shields.io/aur/version/chameleos-git?logo=Arch%20Linux&label=chameleos-git)](https://aur.archlinux.org/packages/chameleos-git)
 
 E.g. using your favorite AUR helper:
+
 ```sh
 paru -S chameleos
 ```
@@ -51,27 +47,33 @@ cargo build --locked --release
 `chamel` is a helper utility used to send commands to `chameleos` while it is running. `chameleos` itself has no keyboard input functionality, all keybinds (for example to toggle input) must be handled from the compositor and `chamel`.
 
 To start `chameleos`:
+
 ```sh
 chameleos &
 ```
+
 This will create a layer shell overlay over your entire current screen in which you can draw. There is currently no way to switch display after start. To toggle input, run `chamel toggle`, after which you can draw with the left mouse button or with a pen on a graphic tablet.
 
 Example keybind configuration in niri:
+
 ```kdl
 F1 { spawn "chamel" "toggle"; }
 F2 { spawn "chamel" "undo"; }
 F3 { spawn "chamel" "clear"; }
 F4 { spawn "chamel" "exit"; }
 ```
+
 To see a list of commands, run `chamel help`.
 
 ### Stroke Color and Width
 
 The stroke width can be set
+
 - on startup with `chameleos --stroke-width 16` (default is 8)
 - on the fly with `chamel stroke-width 16`
 
 The stroke color can be set
+
 - on startup with `chameleos --stroke-color "#00BFFF"` (default is `#FF0000`)
 - on the fly with `chamel stroke-color "#00BFFF"`
 

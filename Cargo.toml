@@ -23,9 +23,9 @@ wayland-client = "0.31.11"
 wayland-protocols-wlr = { version = "0.3.9", features = ["client"] }
 # cursor shape
 wayland-protocols = { version = "0.32.9", features = [
-    "client",
-    "staging",
-    "unstable",
+  "client",
+  "staging",
+  "unstable",
 ] }
 # required to get raw window handles
 wayland-backend = { version = "0.3.11", features = ["client_system"] }
