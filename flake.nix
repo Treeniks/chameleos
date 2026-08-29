@@ -169,6 +169,8 @@
             checks = config.checks;
             shellHook = config.pre-commit.shellHook;
             env.LD_LIBRARY_PATH = libraryPath;
+
+            packages = [ pkgs.cargo-edit ];
           };
 
           treefmt = {
