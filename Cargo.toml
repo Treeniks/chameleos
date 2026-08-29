@@ -15,29 +15,29 @@ default-run = "chameleos"
 name = "chameleos_core"
 
 [dependencies]
-clap = { version = "4.5.48", features = ["derive"] }
-csscolorparser = "0.8.0"
+clap = { version = "4.6.6", features = ["derive"] }
+csscolorparser = "0.8.4"
 
-wayland-client = "0.31.11"
+wayland-client = "0.31.15"
 # layer shell
-wayland-protocols-wlr = { version = "0.3.9", features = ["client"] }
+wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
 # cursor shape
-wayland-protocols = { version = "0.32.9", features = [
+wayland-protocols = { version = "0.32.13", features = [
   "client",
   "staging",
   "unstable",
 ] }
 # required to get raw window handles
-wayland-backend = { version = "0.3.11", features = ["client_system"] }
+wayland-backend = { version = "0.3.17", features = ["client_system"] }
 
 wgpu = "27.0.1"
 raw-window-handle = "0.6.2"
-env_logger = "0.11.8"
-log = "0.4.28"
+env_logger = "0.11.11"
+log = "0.4.34"
 pollster = "0.4.0"
 
-lyon = "1.0.16"
-bytemuck = "1.24.0"
+lyon = "1.0.19"
+bytemuck = "1.25.2"
 
 [build-dependencies]
-chrono = "0.4.42"
+chrono = "0.4.45"
