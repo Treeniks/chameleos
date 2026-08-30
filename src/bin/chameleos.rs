@@ -10,6 +10,9 @@ mod state;
 use log::Level;
 use log::log;
 
+use calloop::EventLoop;
+use calloop_wayland_source::WaylandSource;
+
 use clap::Parser;
 
 use chameleos_core::Command;
@@ -60,12 +63,12 @@ fn main() {
     };
     let mut listener_buffer: Vec<u8> = Vec::with_capacity(128);
 
-    let (mut state, mut event_queue) = state::State::setup_wayland(cli);
+    let (mut state, connection, event_queue) = state::State::setup_wayland(cli);
     let qhandle = event_queue.handle();
 
     state.deactivate(&qhandle);
 
-    let (sender, receiver) = std::sync::mpsc::channel();
+    let (sender, receiver) = calloop::channel::channel();
 
     std::thread::spawn(move || {
         for mut stream in listener.incoming().filter_map(|s| s.ok()) {
@@ -86,25 +89,35 @@ fn main() {
         }
     });
 
-    let qhandle = event_queue.handle();
-    loop {
-        event_queue.blocking_dispatch(&mut state).unwrap();
+    let mut event_loop: EventLoop<state::State> = EventLoop::try_new().unwrap();
+    let loop_handle = event_loop.handle();
+    let stop_handle = event_loop.get_signal();
 
-        if let Ok(command) = receiver.try_recv() {
-            match command {
+    loop_handle
+        .insert_source(receiver, move |event, (), state| match event {
+            calloop::channel::Event::Msg(command) => match command {
                 Command::Toggle => state.toggle_input(&qhandle),
                 Command::Undo => state.undo(),
                 Command::Clear => state.clear(),
                 Command::ClearAndDeactivate => {
                     state.clear();
-                    state.deactivate(&event_queue.handle());
+                    state.deactivate(&qhandle);
                 }
                 Command::StrokeWidth { width } => state.set_stroke_width(width),
                 Command::StrokeColor { color } => state.set_stroke_color(color),
-                Command::Exit => break,
+                Command::Exit => stop_handle.stop(),
+            },
+            calloop::channel::Event::Closed => {
+                eprintln!("listener channel closed");
+                stop_handle.stop();
             }
-        }
-    }
+        })
+        .unwrap();
+    WaylandSource::new(connection, event_queue)
+        .insert(loop_handle)
+        .unwrap();
+
+    event_loop.run(None, &mut state, |_| {}).unwrap();
 
     println!("Exiting");
 }

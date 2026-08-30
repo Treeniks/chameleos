@@ -29,6 +29,8 @@ wayland-protocols = { version = "0.32.13", features = [
 ] }
 # required to get raw window handles
 wayland-backend = { version = "0.3.17", features = ["client_system"] }
+calloop = "0.14.4"
+calloop-wayland-source = "0.4.1"
 
 wgpu = "27.0.1"
 raw-window-handle = "0.6.2"

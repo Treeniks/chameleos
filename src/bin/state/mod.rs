@@ -187,7 +187,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn setup_wayland(cli: crate::Cli) -> (Self, EventQueue<Self>) {
+    pub fn setup_wayland(cli: crate::Cli) -> (Self, Connection, EventQueue<Self>) {
         let connection = Connection::connect_to_env().unwrap();
         let mut setup_queue = connection.new_event_queue();
         let event_queue = connection.new_event_queue();
@@ -195,11 +195,11 @@ impl State {
         let display = connection.display();
         let _registry = display.get_registry(&setup_queue.handle(), event_queue.handle());
 
-        let mut tmp_wayland_state = SetupWaylandState::new(cli.force_backend);
+        let mut setup_wayland_state = SetupWaylandState::new(cli.force_backend);
 
-        setup_queue.roundtrip(&mut tmp_wayland_state).unwrap();
+        setup_queue.roundtrip(&mut setup_wayland_state).unwrap();
 
-        let wayland_state = tmp_wayland_state.into_state(connection, display);
+        let wayland_state = setup_wayland_state.into_state(connection.clone(), display);
         wayland_state.surface.frame(&event_queue.handle(), ());
         wayland_state.surface.commit();
 
@@ -212,7 +212,7 @@ impl State {
             wgpu: None,
         };
 
-        (state, event_queue)
+        (state, connection, event_queue)
     }
 
     pub fn toggle_input(&mut self, qhandle: &QueueHandle<Self>) {
@@ -278,7 +278,11 @@ impl Drop for State {
 
 #[allow(unused)]
 struct WaylandState {
+    /// This is required to be kept in order to prevent a SIGSEV from wgpu on drop.
+    /// We could alternatively make sure the [State] is dropped before the [Connection] in main,
+    /// but this way [State] is more resiliant.
     connection: Connection,
+
     display: WlDisplay,
     compositor: WlCompositor,
     surface: WlSurface,
