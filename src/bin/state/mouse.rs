@@ -78,6 +78,7 @@ impl Dispatch<WlPointer, (), super::State> for MouseState {
 
         let mouse = &mut state.mouse;
         let draw = &mut state.draw;
+        let wayland_state = &state.wayland;
 
         if let Some(sequence) = mouse.event_sequence.dispatch(event) {
             mouse.update_state(sequence);
@@ -96,7 +97,7 @@ impl Dispatch<WlPointer, (), super::State> for MouseState {
             );
 
             if let Some(pos) = pen_pos {
-                draw.add_point_to_line(pos);
+                draw.add_point_to_line(wayland_state, pos);
             }
 
             let erase_pos = draw_pos(
@@ -107,7 +108,7 @@ impl Dispatch<WlPointer, (), super::State> for MouseState {
             );
 
             if let Some(pos) = erase_pos {
-                draw.erase(pos);
+                draw.erase(wayland_state, pos);
             }
 
             if sequence.left_button_released {

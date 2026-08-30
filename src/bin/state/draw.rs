@@ -1,3 +1,4 @@
+use super::WaylandState;
 use crate::render::Geometry;
 use crate::render::WgpuState;
 
@@ -62,32 +63,36 @@ impl DrawState {
     }
 
     pub fn force_render(&mut self, wgpu: &WgpuState) {
-        if let Some((current_line_geometry, _)) = self.tessellate_current_line() {
-            wgpu.render(
-                self.tessellated_lines
-                    .iter()
-                    .chain(std::iter::once(&current_line_geometry)),
-            );
-        } else {
-            wgpu.render(&self.tessellated_lines);
-        }
-
+        wgpu.render(
+            self.tessellated_lines
+                .iter()
+                .chain(self.tessellate_current_line().map(|(g, _)| g).iter()),
+        );
         self.changed = false;
     }
 
-    pub fn add_point_to_line(&mut self, (mouse_x, mouse_y): (f64, f64)) {
+    fn mark_change(&mut self, wayland_state: &WaylandState) {
+        wayland_state.frame();
+        self.changed = true;
+    }
+
+    pub fn add_point_to_line(
+        &mut self,
+        wayland_state: &WaylandState,
+        (mouse_x, mouse_y): (f64, f64),
+    ) {
         let new_x = mouse_x as f32;
         let new_y = self.height as f32 - mouse_y as f32;
         match self.current_line.last() {
             Some((x, y)) => {
                 if f32::abs(x - new_x) + f32::abs(y - new_y) > crate::EPSILON {
                     self.current_line.push((new_x, new_y));
-                    self.changed = true;
+                    self.mark_change(wayland_state);
                 }
             }
             None => {
                 self.current_line.push((new_x, new_y));
-                self.changed = true;
+                self.mark_change(wayland_state);
             }
         }
 
@@ -98,7 +103,7 @@ impl DrawState {
             self.tessellated_lines.push(line);
             self.tessellated_lines_source.push(path);
             self.current_line.clear();
-            self.changed = true;
+            self.mark_change(wayland_state);
         }
     }
 
@@ -110,26 +115,24 @@ impl DrawState {
         self.current_line.clear();
     }
 
-    pub fn undo(&mut self) {
+    pub fn undo(&mut self, wayland_state: &WaylandState) {
         if self.current_line.is_empty() {
             self.tessellated_lines.pop();
             self.tessellated_lines_source.pop();
         } else {
             self.current_line.clear();
         }
-
-        self.changed = true;
+        self.mark_change(wayland_state);
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self, wayland_state: &WaylandState) {
         self.tessellated_lines.clear();
         self.tessellated_lines_source.clear();
         self.current_line.clear();
-
-        self.changed = true;
+        self.mark_change(wayland_state);
     }
 
-    pub fn erase(&mut self, (mouse_x, mouse_y): (f64, f64)) {
+    pub fn erase(&mut self, wayland_state: &WaylandState, (mouse_x, mouse_y): (f64, f64)) {
         let x = mouse_x as f32;
         let y = self.height as f32 - mouse_y as f32;
 
@@ -180,8 +183,7 @@ impl DrawState {
         if let Some(i) = to_remove {
             self.tessellated_lines.remove(i);
             self.tessellated_lines_source.remove(i);
-
-            self.changed = true;
+            self.mark_change(wayland_state);
         }
     }
 

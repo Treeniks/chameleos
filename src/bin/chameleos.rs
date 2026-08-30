@@ -78,7 +78,7 @@ fn main() {
                 target: "chameleos::socket",
                 Level::Info,
                 "received message: {}",
-                String::from_utf8_lossy(&listener_buffer)
+                String::from_utf8_lossy(&listener_buffer),
             );
 
             match Command::deserialize(&listener_buffer) {

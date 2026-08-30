@@ -113,6 +113,7 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
 
         let tablet = &mut state.tablet;
         let draw = &mut state.draw;
+        let wayland_state = &state.wayland;
 
         // TODO this is very similar to MouseState
         if let Some(sequence) = tablet.event_sequence.dispatch(event) {
@@ -133,9 +134,9 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
 
             if let Some(pos) = pen_pos {
                 if tablet.button_held {
-                    draw.erase(pos);
+                    draw.erase(wayland_state, pos);
                 } else {
-                    draw.add_point_to_line(pos);
+                    draw.add_point_to_line(wayland_state, pos);
                 }
             }
 

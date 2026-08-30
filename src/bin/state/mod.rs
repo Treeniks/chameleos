@@ -86,9 +86,15 @@ impl SetupWaylandState {
         }
     }
 
-    fn into_state(self, connection: Connection, display: WlDisplay) -> WaylandState {
+    fn into_wayland_state(
+        self,
+        connection: Connection,
+        qhandle: QueueHandle<State>,
+        display: WlDisplay,
+    ) -> WaylandState {
         WaylandState {
             connection,
+            qhandle,
             display,
             compositor: self.compositor.unwrap(),
             surface: self.surface.unwrap(),
@@ -199,9 +205,12 @@ impl State {
 
         setup_queue.roundtrip(&mut setup_wayland_state).unwrap();
 
-        let wayland_state = setup_wayland_state.into_state(connection.clone(), display);
-        wayland_state.surface.frame(&event_queue.handle(), ());
-        wayland_state.surface.commit();
+        let wayland_state = setup_wayland_state.into_wayland_state(
+            connection.clone(),
+            event_queue.handle(),
+            display,
+        );
+        wayland_state.frame();
 
         let state = Self {
             active: false,
@@ -242,11 +251,11 @@ impl State {
     }
 
     pub fn undo(&mut self) {
-        self.draw.undo();
+        self.draw.undo(&self.wayland);
     }
 
     pub fn clear(&mut self) {
-        self.draw.clear();
+        self.draw.clear(&self.wayland);
     }
 
     pub fn set_stroke_width(&mut self, width: f32) {
@@ -282,6 +291,7 @@ struct WaylandState {
     /// We could alternatively make sure the [State] is dropped before the [Connection] in main,
     /// but this way [State] is more resiliant.
     connection: Connection,
+    qhandle: QueueHandle<State>,
 
     display: WlDisplay,
     compositor: WlCompositor,
@@ -293,6 +303,13 @@ struct WaylandState {
 
     cursor_shape_manager: WpCursorShapeManagerV1,
     tablet_manager: ZwpTabletManagerV2,
+}
+
+impl WaylandState {
+    fn frame(&self) {
+        self.surface.frame(&self.qhandle, ());
+        self.surface.commit();
+    }
 }
 
 delegate_log!(WlCompositor);
@@ -346,7 +363,7 @@ impl Dispatch<WlCallback, ()> for State {
         event: <WlCallback as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
-        qhandle: &QueueHandle<Self>,
+        _qhandle: &QueueHandle<Self>,
     ) {
         log!(target: "chameleos::wayland", Level::Trace, "WlCallback: {:?}", event);
 
@@ -354,9 +371,6 @@ impl Dispatch<WlCallback, ()> for State {
         match event {
             Event::Done { callback_data: _ } => {
                 state.render();
-
-                state.wayland.surface.frame(qhandle, ());
-                state.wayland.surface.commit();
             }
             _ => {}
         }
