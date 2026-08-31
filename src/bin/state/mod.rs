@@ -254,6 +254,10 @@ impl State {
         self.draw.undo(&self.wayland);
     }
 
+    pub fn redo(&mut self) {
+        self.draw.redo(&self.wayland);
+    }
+
     pub fn clear(&mut self) {
         self.draw.clear(&self.wayland);
     }

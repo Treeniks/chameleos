@@ -212,6 +212,8 @@ dependencies = [
  "lyon",
  "pollster",
  "raw-window-handle",
+ "stable-vec",
+ "undoredo",
  "wayland-backend",
  "wayland-client",
  "wayland-protocols",
@@ -860,6 +862,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "maplike"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4696b215d79e17ca07a1f493ef80b0e3f06fe03857ca19e913b361168ba3eeb"
+dependencies = [
+ "maplike_derive",
+ "stable-vec",
+]
+
+[[package]]
+name = "maplike_derive"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ae97121f6960c4d1be6cef31408e1e1624296894874fcf8c262fd12e6493422"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.4",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1281,6 +1304,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "stable-vec"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "047720fbc1c4cc7daa75c925adba9ce3fa8e1f7b039337c281b142d4ecc6d86b"
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1387,6 +1416,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1b88fcfe09e89d3866a5c11019378088af2d24c3fbd4f0543f96b479ec90697"
 dependencies = [
  "version_check",
+]
+
+[[package]]
+name = "undoredo"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfdcda474c0da724f6731b1da3dd4dbe1bd7104e22759988090fbab7b318597f"
+dependencies = [
+ "maplike",
+ "stable-vec",
+ "undoredo_derive",
+]
+
+[[package]]
+name = "undoredo_derive"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "494ad456d5dc37557a1264a5a0754360c49211ff2e21e87f6321a0847af572ab"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.4",
 ]
 
 [[package]]

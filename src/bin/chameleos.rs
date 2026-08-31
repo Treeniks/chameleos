@@ -98,6 +98,7 @@ fn main() {
             calloop::channel::Event::Msg(command) => match command {
                 Command::Toggle => state.toggle_input(&qhandle),
                 Command::Undo => state.undo(),
+                Command::Redo => state.redo(),
                 Command::Clear => state.clear(),
                 Command::ClearAndDeactivate => {
                     state.clear();
