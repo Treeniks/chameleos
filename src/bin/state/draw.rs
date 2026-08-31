@@ -119,7 +119,6 @@ impl DrawState {
     pub fn cut_line(&mut self) {
         if let Some((tesselated_line, path)) = self.tessellate_current_line() {
             self.recorder.push((tesselated_line, path));
-            self.undoredo.commit(&mut self.recorder);
         }
         self.current_line.clear();
     }
@@ -134,13 +133,18 @@ impl DrawState {
         self.mark_change(wayland_state);
     }
 
+    pub fn commit_undoredo(&mut self) {
+        self.undoredo.commit(&mut self.recorder);
+    }
+
     pub fn clear(&mut self, wayland_state: &WaylandState) {
         self.recorder.clear();
         self.current_line.clear();
         self.mark_change(wayland_state);
     }
 
-    pub fn erase(&mut self, wayland_state: &WaylandState, (mouse_x, mouse_y): (f64, f64)) {
+    /// Returns true if something was erased.
+    pub fn erase(&mut self, wayland_state: &WaylandState, (mouse_x, mouse_y): (f64, f64)) -> bool {
         let x = mouse_x as f32;
         let y = self.height as f32 - mouse_y as f32;
 
@@ -190,8 +194,10 @@ impl DrawState {
 
         if let Some(i) = to_remove {
             self.recorder.remove(&i);
-            self.undoredo.commit(&mut self.recorder);
             self.mark_change(wayland_state);
+            true
+        } else {
+            false
         }
     }
 

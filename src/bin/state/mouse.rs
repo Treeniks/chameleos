@@ -33,6 +33,7 @@ pub struct MouseState {
     mouse_pos: Option<(f64, f64)>,
     left_button_held: bool,
     right_button_held: bool,
+    erased_something: bool,
 }
 
 impl MouseState {
@@ -108,11 +109,17 @@ impl Dispatch<WlPointer, (), super::State> for MouseState {
             );
 
             if let Some(pos) = erase_pos {
-                draw.erase(wayland_state, pos);
+                mouse.erased_something |= draw.erase(wayland_state, pos);
             }
 
             if sequence.left_button_released {
                 draw.cut_line();
+                draw.commit_undoredo();
+            }
+
+            if mouse.erased_something && sequence.right_button_released {
+                draw.commit_undoredo();
+                mouse.erased_something = false;
             }
         }
     }

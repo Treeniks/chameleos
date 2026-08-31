@@ -35,6 +35,7 @@ pub struct TabletState {
     pos: Option<(f64, f64)>,
     pen_held: bool,
     button_held: bool,
+    erased_something: bool,
 }
 
 impl TabletState {
@@ -134,14 +135,22 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
 
             if let Some(pos) = pen_pos {
                 if tablet.button_held {
-                    draw.erase(wayland_state, pos);
+                    tablet.erased_something |= draw.erase(wayland_state, pos);
                 } else {
                     draw.add_point_to_line(wayland_state, pos);
                 }
             }
 
-            if sequence.pen_released || sequence.button_pressed {
+            if (sequence.pen_released && !tablet.button_held)
+                || (tablet.pen_held && sequence.button_pressed)
+            {
                 draw.cut_line();
+                draw.commit_undoredo();
+            }
+
+            if tablet.erased_something && (sequence.pen_released || sequence.button_released) {
+                draw.commit_undoredo();
+                tablet.erased_something = false;
             }
         }
     }
