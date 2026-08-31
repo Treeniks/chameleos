@@ -2,29 +2,40 @@ use super::WaylandState;
 use crate::render::Geometry;
 use crate::render::WgpuState;
 
+use stable_vec::StableVec;
+use undoredo::Recorder;
+use undoredo::UndoRedo;
+use undoredo::aliases::StableVecDelta;
+use undoredo::aliases::StableVecHalfDelta;
+
+type Line = (Geometry, lyon::path::Path);
+
 pub struct DrawState {
     changed: bool,
+
+    current_line: Vec<(f32, f32)>,
+    recorder: Recorder<StableVec<Line>, StableVecHalfDelta<Line>>,
+    undoredo: UndoRedo<StableVecDelta<Line>>,
 
     height: u32,
     stroke_width: f32,
     stroke_color: csscolorparser::Color,
     color_needs_pre_multiply: bool,
-    current_line: Vec<(f32, f32)>,
-    tessellated_lines: Vec<Geometry>,
-    tessellated_lines_source: Vec<lyon::path::Path>,
 }
 
 impl DrawState {
     pub fn new(stroke_width: f32, stroke_color: csscolorparser::Color) -> Self {
         Self {
             changed: false,
+
+            current_line: Vec::new(),
+            recorder: Recorder::new(StableVec::new()),
+            undoredo: UndoRedo::new(),
+
             height: 0,
             stroke_width,
             stroke_color,
             color_needs_pre_multiply: false,
-            current_line: Vec::new(),
-            tessellated_lines: Vec::new(),
-            tessellated_lines_source: Vec::new(),
         }
     }
 
@@ -63,9 +74,11 @@ impl DrawState {
     }
 
     pub fn force_render(&mut self, wgpu: &WgpuState) {
+        let lines = self.recorder.container();
         wgpu.render(
-            self.tessellated_lines
+            lines
                 .iter()
+                .map(|(_, (geometry, _))| geometry)
                 .chain(self.tessellate_current_line().map(|(g, _)| g).iter()),
         );
         self.changed = false;
@@ -99,35 +112,30 @@ impl DrawState {
         // lines shouldn't get *too* long or it'll cause performance issues
         // also lyon has an upper limit at some point
         if self.current_line.len() > 0x800 {
-            let (line, path) = self.tessellate_current_line().unwrap();
-            self.tessellated_lines.push(line);
-            self.tessellated_lines_source.push(path);
-            self.current_line.clear();
-            self.mark_change(wayland_state);
+            self.cut_line();
         }
     }
 
     pub fn cut_line(&mut self) {
         if let Some((tesselated_line, path)) = self.tessellate_current_line() {
-            self.tessellated_lines.push(tesselated_line);
-            self.tessellated_lines_source.push(path);
+            self.recorder.push((tesselated_line, path));
+            self.undoredo.commit(&mut self.recorder);
         }
         self.current_line.clear();
     }
 
     pub fn undo(&mut self, wayland_state: &WaylandState) {
-        if self.current_line.is_empty() {
-            self.tessellated_lines.pop();
-            self.tessellated_lines_source.pop();
-        } else {
-            self.current_line.clear();
-        }
+        self.undoredo.undo(&mut self.recorder);
+        self.mark_change(wayland_state);
+    }
+
+    pub fn redo(&mut self, wayland_state: &WaylandState) {
+        self.undoredo.redo(&mut self.recorder);
         self.mark_change(wayland_state);
     }
 
     pub fn clear(&mut self, wayland_state: &WaylandState) {
-        self.tessellated_lines.clear();
-        self.tessellated_lines_source.clear();
+        self.recorder.clear();
         self.current_line.clear();
         self.mark_change(wayland_state);
     }
@@ -142,7 +150,7 @@ impl DrawState {
 
         let mut to_remove = None;
 
-        for (i, line) in self.tessellated_lines_source.iter().enumerate() {
+        for (i, (_, line)) in self.recorder.container().iter() {
             // simple distance check from each point to our cursor
             // we could also use lyon::math::hit_test
             // but that has caused problems with short paths
@@ -181,8 +189,8 @@ impl DrawState {
         }
 
         if let Some(i) = to_remove {
-            self.tessellated_lines.remove(i);
-            self.tessellated_lines_source.remove(i);
+            self.recorder.remove(&i);
+            self.undoredo.commit(&mut self.recorder);
             self.mark_change(wayland_state);
         }
     }

@@ -4,6 +4,7 @@ use clap::Subcommand;
 pub enum Command {
     Toggle,
     Undo,
+    Redo,
     Clear,
     ClearAndDeactivate,
     StrokeWidth { width: f32 },
@@ -16,6 +17,7 @@ impl Command {
         match self {
             Command::Toggle => b"toggle".to_vec(),
             Command::Undo => b"undo".to_vec(),
+            Command::Redo => b"redo".to_vec(),
             Command::Clear => b"clear".to_vec(),
             Command::ClearAndDeactivate => b"clear_and_deactivate".to_vec(),
             Command::StrokeWidth { width } => {
@@ -36,6 +38,7 @@ impl Command {
         match split.next() {
             Some(b"toggle") => Ok(Self::Toggle),
             Some(b"undo") => Ok(Self::Undo),
+            Some(b"redo") => Ok(Self::Redo),
             Some(b"clear") => Ok(Self::Clear),
             Some(b"clear_and_deactivate") => Ok(Self::ClearAndDeactivate),
             Some(b"stroke_width") => {
