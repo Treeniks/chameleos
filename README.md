@@ -6,7 +6,7 @@
 
 Wayland screen annotation tool, tested for [niri](https://yalter.github.io/niri/) and [Hyprland](https://hypr.land/).
 
-https://github.com/user-attachments/assets/347d9f77-437f-4793-9df3-1696dd4df926
+![Chameleos Demo Screenshot](https://github.com/user-attachments/assets/81c6e2fc-48e1-4ad7-af7f-edb9044726d8)
 
 Originally [bodged together](https://github.com/Treeniks/chameleos-egui) with [eframe](https://docs.rs/eframe/latest/eframe/) for a lecture, this repository holds a complete low-level rewrite, utilizing wayland's layer shell protocol with [wayland-client](https://crates.io/crates/wayland-client) directly, path tessellation with [lyon](https://crates.io/crates/lyon) and GPU rendering with [wgpu](https://wgpu.rs/).
 
