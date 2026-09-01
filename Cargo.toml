@@ -1,6 +1,6 @@
 [package]
 name = "chameleos"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Thomas Lindae <thomas@lindae.de>"]
 edition = "2024"
 description = "Screen annotation tool for niri and Hyprland"
