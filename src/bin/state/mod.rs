@@ -279,15 +279,21 @@ impl State {
     }
 
     pub fn undo(&mut self) {
-        self.draw.undo(&self.wayland);
+        if !self.hidden {
+            self.draw.undo(&self.wayland);
+        }
     }
 
     pub fn redo(&mut self) {
-        self.draw.redo(&self.wayland);
+        if !self.hidden {
+            self.draw.redo(&self.wayland);
+        }
     }
 
     pub fn clear(&mut self) {
-        self.draw.clear(&self.wayland);
+        if !self.hidden {
+            self.draw.clear(&self.wayland);
+        }
     }
 
     pub fn set_stroke_width(&mut self, width: f32) {
