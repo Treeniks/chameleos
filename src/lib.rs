@@ -8,7 +8,11 @@ pub mod metadata {
 #[derive(Subcommand)]
 pub enum Command {
     Toggle,
+    Activate,
+    Deactivate,
     ToggleHide,
+    Hide,
+    Unhide,
     Undo,
     Redo,
     Clear,
@@ -22,7 +26,11 @@ impl Command {
     pub fn serialize(&self) -> Vec<u8> {
         match self {
             Command::Toggle => b"toggle".to_vec(),
+            Command::Activate => b"activate".to_vec(),
+            Command::Deactivate => b"deactivate".to_vec(),
             Command::ToggleHide => b"toggle-hide".to_vec(),
+            Command::Hide => b"hide".to_vec(),
+            Command::Unhide => b"unhide".to_vec(),
             Command::Undo => b"undo".to_vec(),
             Command::Redo => b"redo".to_vec(),
             Command::Clear => b"clear".to_vec(),
@@ -44,7 +52,11 @@ impl Command {
 
         match split.next() {
             Some(b"toggle") => Ok(Self::Toggle),
+            Some(b"activate") => Ok(Self::Activate),
+            Some(b"deactivate") => Ok(Self::Deactivate),
             Some(b"toggle-hide") => Ok(Self::ToggleHide),
+            Some(b"hide") => Ok(Self::Hide),
+            Some(b"unhide") => Ok(Self::Unhide),
             Some(b"undo") => Ok(Self::Undo),
             Some(b"redo") => Ok(Self::Redo),
             Some(b"clear") => Ok(Self::Clear),

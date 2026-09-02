@@ -94,7 +94,11 @@ fn main() {
         .insert_source(receiver, move |event, (), state| match event {
             calloop::channel::Event::Msg(command) => match command {
                 Command::Toggle => state.toggle_input(&qhandle),
+                Command::Activate => state.activate(),
+                Command::Deactivate => state.deactivate(&qhandle),
                 Command::ToggleHide => state.toggle_hide(&qhandle),
+                Command::Hide => state.hide(&qhandle),
+                Command::Unhide => state.unhide(),
                 Command::Undo => state.undo(),
                 Command::Redo => state.redo(),
                 Command::Clear => state.clear(),
