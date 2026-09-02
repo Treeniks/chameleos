@@ -140,6 +140,7 @@ impl DrawState {
     pub fn clear(&mut self, wayland_state: &WaylandState) {
         self.recorder.clear();
         self.current_line.clear();
+        self.commit_undoredo();
         self.mark_change(wayland_state);
     }
 
