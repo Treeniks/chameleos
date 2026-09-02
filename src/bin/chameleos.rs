@@ -16,12 +16,9 @@ use calloop_wayland_source::WaylandSource;
 use clap::Parser;
 
 use chameleos_core::Command;
+use chameleos_core::metadata;
 
 const EPSILON: f32 = 5.0;
-
-mod metadata {
-    include!(concat!(env!("OUT_DIR"), "/metadata.rs"));
-}
 
 #[derive(Parser)]
 #[command(

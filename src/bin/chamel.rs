@@ -6,10 +6,7 @@ use std::os::unix::net::UnixStream;
 use clap::Parser;
 
 use chameleos_core::Command;
-
-mod metadata {
-    include!(concat!(env!("OUT_DIR"), "/metadata.rs"));
-}
+use chameleos_core::metadata;
 
 #[derive(Parser)]
 #[command(

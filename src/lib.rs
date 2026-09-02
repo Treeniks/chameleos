@@ -1,5 +1,10 @@
 use clap::Subcommand;
 
+pub mod metadata {
+    pub const VERSION: &str = env!("CHAMELEOS_VERSION");
+    pub const LONG_VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/long_version"));
+}
+
 #[derive(Subcommand)]
 pub enum Command {
     Toggle,
