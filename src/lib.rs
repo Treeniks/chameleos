@@ -8,6 +8,7 @@ pub mod metadata {
 #[derive(Subcommand)]
 pub enum Command {
     Toggle,
+    ToggleHide,
     Undo,
     Redo,
     Clear,
@@ -21,16 +22,17 @@ impl Command {
     pub fn serialize(&self) -> Vec<u8> {
         match self {
             Command::Toggle => b"toggle".to_vec(),
+            Command::ToggleHide => b"toggle-hide".to_vec(),
             Command::Undo => b"undo".to_vec(),
             Command::Redo => b"redo".to_vec(),
             Command::Clear => b"clear".to_vec(),
-            Command::ClearAndDeactivate => b"clear_and_deactivate".to_vec(),
+            Command::ClearAndDeactivate => b"clear-and-deactivate".to_vec(),
             Command::StrokeWidth { width } => {
-                let s = format!("stroke_width {}", width);
+                let s = format!("stroke-width {}", width);
                 s.as_bytes().to_vec()
             }
             Command::StrokeColor { color } => {
-                let s = format!("stroke_color {}", color.to_css_hex());
+                let s = format!("stroke-color {}", color.to_css_hex());
                 s.as_bytes().to_vec()
             }
             Command::Exit => b"exit".to_vec(),
@@ -42,11 +44,12 @@ impl Command {
 
         match split.next() {
             Some(b"toggle") => Ok(Self::Toggle),
+            Some(b"toggle-hide") => Ok(Self::ToggleHide),
             Some(b"undo") => Ok(Self::Undo),
             Some(b"redo") => Ok(Self::Redo),
             Some(b"clear") => Ok(Self::Clear),
-            Some(b"clear_and_deactivate") => Ok(Self::ClearAndDeactivate),
-            Some(b"stroke_width") => {
+            Some(b"clear-and-deactivate") => Ok(Self::ClearAndDeactivate),
+            Some(b"stroke-width") => {
                 match split
                     .next()
                     .and_then(|width_text| String::from_utf8(width_text.to_vec()).ok())
@@ -56,7 +59,7 @@ impl Command {
                     None => Err("received stroke width message but couldn't parse a width"),
                 }
             }
-            Some(b"stroke_color") => {
+            Some(b"stroke-color") => {
                 match split
                     .next()
                     .and_then(|color_text| String::from_utf8(color_text.to_vec()).ok())

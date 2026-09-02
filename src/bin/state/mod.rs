@@ -182,6 +182,7 @@ impl Dispatch<WlRegistry, QueueHandle<State>> for SetupWaylandState {
 
 pub struct State {
     active: bool,
+    hidden: bool,
 
     wayland: WaylandState,
     draw: draw::DrawState,
@@ -214,6 +215,7 @@ impl State {
 
         let state = Self {
             active: false,
+            hidden: false,
             wayland: wayland_state,
             draw: draw::DrawState::new(cli.stroke_width, cli.stroke_color),
             mouse: mouse::MouseState::default(),
@@ -235,6 +237,10 @@ impl State {
     pub fn activate(&mut self) {
         // reset to full region
         log!(target: "chameleos::general", Level::Info, "activate");
+
+        if self.hidden {
+            self.unhide();
+        }
         self.wayland.surface.set_input_region(None);
         self.wayland.surface.commit();
 
@@ -248,6 +254,28 @@ impl State {
         self.wayland.surface.commit();
 
         self.active = false;
+    }
+
+    pub fn toggle_hide(&mut self, qhandle: &QueueHandle<Self>) {
+        if self.hidden {
+            self.unhide();
+        } else {
+            self.hide(qhandle);
+        }
+        self.force_render();
+    }
+
+    pub fn hide(&mut self, qhandle: &QueueHandle<Self>) {
+        log!(target: "chameleos::general", Level::Info, "hide");
+        self.hidden = true;
+        self.deactivate(qhandle);
+        self.force_render();
+    }
+
+    pub fn unhide(&mut self) {
+        log!(target: "chameleos::general", Level::Info, "unhide");
+        self.hidden = false;
+        self.force_render();
     }
 
     pub fn undo(&mut self) {
@@ -272,13 +300,13 @@ impl State {
 
     fn render(&mut self) {
         if let Some(ref wgpu) = self.wgpu {
-            self.draw.render(wgpu);
+            self.draw.render(wgpu, self.hidden);
         }
     }
 
     fn force_render(&mut self) {
         if let Some(ref wgpu) = self.wgpu {
-            self.draw.force_render(wgpu);
+            self.draw.force_render(wgpu, self.hidden);
         }
     }
 }
