@@ -67,20 +67,24 @@ impl DrawState {
         self.stroke_color.b *= self.stroke_color.a;
     }
 
-    pub fn render(&mut self, wgpu: &WgpuState) {
+    pub fn render(&mut self, wgpu: &WgpuState, hidden: bool) {
         if self.changed {
-            self.force_render(wgpu);
+            self.force_render(wgpu, hidden);
         }
     }
 
-    pub fn force_render(&mut self, wgpu: &WgpuState) {
+    pub fn force_render(&mut self, wgpu: &WgpuState, hidden: bool) {
         let lines = self.recorder.container();
-        wgpu.render(
-            lines
-                .iter()
-                .map(|(_, (geometry, _))| geometry)
-                .chain(self.tessellate_current_line().map(|(g, _)| g).iter()),
-        );
+        if hidden {
+            wgpu.render(std::iter::empty());
+        } else {
+            wgpu.render(
+                lines
+                    .iter()
+                    .map(|(_, (geometry, _))| geometry)
+                    .chain(self.tessellate_current_line().map(|(g, _)| g).iter()),
+            );
+        }
         self.changed = false;
     }
 
