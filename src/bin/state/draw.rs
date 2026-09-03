@@ -116,11 +116,15 @@ impl DrawState {
         }
     }
 
-    pub fn cut_line(&mut self) {
-        if let Some((tesselated_line, path)) = self.tessellate_current_line() {
-            self.recorder.push((tesselated_line, path));
+    /// returns true if a line was added
+    pub fn cut_line(&mut self) -> bool {
+        let mut result = false;
+        if let Some(line) = self.tessellate_current_line() {
+            self.recorder.push(line);
+            result = true;
         }
         self.current_line.clear();
+        result
     }
 
     pub fn undo(&mut self, wayland_state: &WaylandState) {
@@ -138,8 +142,12 @@ impl DrawState {
     }
 
     pub fn clear(&mut self, wayland_state: &WaylandState) {
+        // we cut the line first so an existing line is added to the undoredo stack
+        if self.cut_line() {
+            self.commit_undoredo();
+        }
+
         self.recorder.clear();
-        self.current_line.clear();
         self.commit_undoredo();
         self.mark_change(wayland_state);
     }

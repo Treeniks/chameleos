@@ -141,10 +141,10 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
                 }
             }
 
-            if (sequence.pen_released && !tablet.button_held)
-                || (tablet.pen_held && sequence.button_pressed)
+            if ((sequence.pen_released && !tablet.button_held)
+                || (tablet.pen_held && sequence.button_pressed))
+                && draw.cut_line()
             {
-                draw.cut_line();
                 draw.commit_undoredo();
             }
 

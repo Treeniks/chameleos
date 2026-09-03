@@ -112,8 +112,7 @@ impl Dispatch<WlPointer, (), super::State> for MouseState {
                 mouse.erased_something |= draw.erase(wayland_state, pos);
             }
 
-            if sequence.left_button_released {
-                draw.cut_line();
+            if sequence.left_button_released && draw.cut_line() {
                 draw.commit_undoredo();
             }
 
