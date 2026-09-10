@@ -15,7 +15,7 @@ default-run = "chameleos"
 name = "chameleos_core"
 
 [dependencies]
-clap = { version = "4.6.6", features = ["derive"] }
+clap = { version = "4.6.7", features = ["derive"] }
 csscolorparser = "0.8.4"
 
 wayland-client = "0.31.15"
@@ -32,16 +32,16 @@ wayland-backend = { version = "0.3.17", features = ["client_system"] }
 calloop = "0.14.4"
 calloop-wayland-source = "0.4.1"
 
-wgpu = "27.0.1"
+wgpu = "30.0.1"
 raw-window-handle = "0.6.2"
 env_logger = "0.11.11"
 log = "0.4.34"
-pollster = "0.4.0"
+pollster = "1.0.1"
 
 lyon = "1.0.19"
 bytemuck = "1.25.2"
 
-undoredo = { version = "0.14.1", features = ["derive", "stable-vec"] }
+undoredo = { version = "0.15.1", features = ["derive", "stable-vec"] }
 stable-vec = "0.4.3"
 
 [build-dependencies]

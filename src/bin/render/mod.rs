@@ -78,13 +78,13 @@ impl WgpuState {
         height: u32,
         force_backend: Option<Backend>,
     ) -> Self {
-        let wgpu_instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let wgpu_instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: match force_backend {
                 Some(Backend::Vulkan) => wgpu::Backends::VULKAN,
                 Some(Backend::OpenGL) => wgpu::Backends::GL,
                 None => wgpu::Backends::all(),
             },
-            ..Default::default()
+            ..wgpu::InstanceDescriptor::new_without_display_handle()
         });
 
         let raw_display_handle = raw_window_handle::RawDisplayHandle::Wayland(
@@ -100,7 +100,7 @@ impl WgpuState {
 
         let wgpu_surface = unsafe {
             wgpu_instance.create_surface_unsafe(wgpu::SurfaceTargetUnsafe::RawHandle {
-                raw_display_handle,
+                raw_display_handle: Some(raw_display_handle),
                 raw_window_handle,
             })
         }
@@ -111,6 +111,7 @@ impl WgpuState {
                 power_preference: wgpu::PowerPreference::default(),
                 force_fallback_adapter: false,
                 compatible_surface: Some(&wgpu_surface),
+                apply_limit_buckets: false,
             }))
             .unwrap();
 
@@ -164,6 +165,7 @@ impl WgpuState {
         let wgpu_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
+            color_space: wgpu::SurfaceColorSpace::Auto,
             width,
             height,
             present_mode,
@@ -229,8 +231,8 @@ impl WgpuState {
         let render_pipeline_layout =
             wgpu_device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
-                bind_group_layouts: &[&uniform_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(&uniform_bind_group_layout)],
+                immediate_size: 0,
             });
         let render_pipeline = wgpu_device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
@@ -239,7 +241,7 @@ impl WgpuState {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Vertex::DESC],
+                buffers: &[Some(Vertex::DESC)],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -268,7 +270,7 @@ impl WgpuState {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -309,14 +311,19 @@ impl WgpuState {
 
     pub fn render<'a>(&self, geometries: impl IntoIterator<Item = &'a Geometry>) {
         let output = match self.surface.get_current_texture() {
-            Ok(output) => output,
-            Err(wgpu::SurfaceError::Outdated) => {
+            wgpu::CurrentSurfaceTexture::Success(surface_texture) => surface_texture,
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => return,
+            wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
+                drop(frame);
                 self.surface.configure(&self.device, &self.surface_config);
-                self.surface.get_current_texture().unwrap()
+                return;
             }
-            _ => {
-                panic!();
+            wgpu::CurrentSurfaceTexture::Outdated => {
+                self.surface.configure(&self.device, &self.surface_config);
+                return;
             }
+            wgpu::CurrentSurfaceTexture::Lost => panic!(),
+            wgpu::CurrentSurfaceTexture::Validation => panic!(),
         };
 
         let swapchain_view = output
@@ -345,6 +352,7 @@ impl WgpuState {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         render_pass.set_pipeline(&self.render_pipeline);
@@ -380,6 +388,6 @@ impl WgpuState {
         drop(render_pass);
 
         self.queue.submit(Some(encoder.finish()));
-        output.present();
+        self.queue.present(output);
     }
 }
