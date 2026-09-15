@@ -221,7 +221,6 @@ dependencies = [
  "lyon",
  "pollster",
  "raw-window-handle",
- "stable-vec",
  "undoredo",
  "wayland-backend",
  "wayland-client",
@@ -808,7 +807,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd156cceffdd663ffb42053c3cdaf8adeb574d38e960700b1634f5b97bec7bdd"
 dependencies = [
  "maplike_derive",
- "stable-vec",
 ]
 
 [[package]]
@@ -1324,12 +1322,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "stable-vec"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "047720fbc1c4cc7daa75c925adba9ce3fa8e1f7b039337c281b142d4ecc6d86b"
-
-[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1425,7 +1417,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee0963bb3089cf655980e5ea52b686e098e56dcc248af11e968a99dc9456c927"
 dependencies = [
  "maplike",
- "stable-vec",
  "undoredo_derive",
 ]
 

@@ -41,8 +41,7 @@ pollster = "1.0.1"
 lyon = "1.0.19"
 bytemuck = "1.25.2"
 
-undoredo = { version = "0.15.1", features = ["derive", "stable-vec"] }
-stable-vec = "0.4.3"
+undoredo = { version = "0.15.1", features = ["derive"] }
 
 [build-dependencies]
 chrono = "0.4.45"

@@ -2,11 +2,10 @@ use super::WaylandState;
 use crate::render::Geometry;
 use crate::render::WgpuState;
 
-use stable_vec::StableVec;
 use undoredo::Recorder;
 use undoredo::UndoRedo;
-use undoredo::aliases::StableVecDelta;
-use undoredo::aliases::StableVecHalfDelta;
+use undoredo::aliases::VecDelta;
+use undoredo::aliases::VecHalfDelta;
 
 type Line = (Geometry, lyon::path::Path);
 
@@ -14,8 +13,8 @@ pub struct DrawState {
     changed: bool,
 
     current_line: Vec<(f32, f32)>,
-    recorder: Recorder<StableVec<Line>, StableVecHalfDelta<Line>>,
-    undoredo: UndoRedo<StableVecDelta<Line>>,
+    recorder: Recorder<Vec<Line>, VecHalfDelta<Line>>,
+    undoredo: UndoRedo<VecDelta<Line>>,
 
     height: u32,
     stroke_width: f32,
@@ -29,7 +28,7 @@ impl DrawState {
             changed: false,
 
             current_line: Vec::new(),
-            recorder: Recorder::new(StableVec::new()),
+            recorder: Recorder::new(Vec::new()),
             undoredo: UndoRedo::new(),
 
             height: 0,
@@ -81,7 +80,7 @@ impl DrawState {
             wgpu.render(
                 lines
                     .iter()
-                    .map(|(_, (geometry, _))| geometry)
+                    .map(|(geometry, _)| geometry)
                     .chain(self.tessellate_current_line().map(|(g, _)| g).iter()),
             );
         }
@@ -167,7 +166,7 @@ impl DrawState {
 
         let mut to_remove = None;
 
-        for (i, (_, line)) in self.recorder.container().iter() {
+        for (i, (_, line)) in self.recorder.container().iter().enumerate() {
             // simple distance check from each point to our cursor
             // we could also use lyon::math::hit_test
             // but that has caused problems with short paths
@@ -206,7 +205,7 @@ impl DrawState {
         }
 
         if let Some(i) = to_remove {
-            self.recorder.remove(&i);
+            self.recorder.swap_remove(&i);
             self.mark_change(wayland_state);
             true
         } else {
