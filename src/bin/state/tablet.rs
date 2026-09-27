@@ -126,14 +126,9 @@ impl Dispatch<ZwpTabletToolV2, (), super::State> for TabletState {
                 device.set_shape(serial, Shape::Crosshair);
             }
 
-            let pen_pos = mouse::draw_pos(
-                sequence.pen_pressed,
-                sequence.motion,
-                tablet.pen_held,
-                tablet.pos,
-            );
-
-            if let Some(pos) = pen_pos {
+            if tablet.pen_held
+                && let Some(pos) = sequence.motion.or(tablet.pos)
+            {
                 if tablet.button_held {
                     tablet.erased_something |= draw.erase(wayland_state, pos);
                 } else {
