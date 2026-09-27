@@ -35,7 +35,6 @@ jobs:
           targets: ${{ matrix.job.target }}
       - name: Install Deps
         run: sudo apt-get install -y libwayland-dev
-      - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build --locked --release --target=${{ matrix.job.target }}
       - name: Create Tarball
