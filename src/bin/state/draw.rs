@@ -150,9 +150,11 @@ impl DrawState {
             self.commit_undoredo();
         }
 
-        self.recorder.clear();
-        self.commit_undoredo();
-        self.mark_change(wayland_state);
+        if !self.recorder.container().is_empty() {
+            self.recorder.clear();
+            self.commit_undoredo();
+            self.mark_change(wayland_state);
+        }
     }
 
     /// Returns true if something was erased.
